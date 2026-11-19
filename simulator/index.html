@@ -1,0 +1,556 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>자동응답 시뮬레이터</title>
+<style>
+:root{--bg:#eef1f4;--panel:#fff;--line:#dfe3e8;--text:#1d232b;--muted:#6b7684;--accent:#2f7fd1;
+--me:#dcf3d0;--auto:#fff3cf;--autoline:#e6b422;--target:#e8f1fd;--mgr:#f3e9fb;--other:#f1f3f5;--ok:#1e8e3e;--warn:#c0392b}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:"Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column}
+button{font:inherit;cursor:pointer}
+#top{background:var(--panel);border-bottom:1px solid var(--line);padding:10px 16px}
+#titlerow{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+#titlerow h1{font-size:16px;margin:0}
+#titlerow small{color:var(--muted);font-size:12px}
+#editbtn{margin-left:auto;border:1px solid var(--accent);background:#fff;color:var(--accent);border-radius:6px;padding:4px 10px;font-size:12px}
+#editbtn.on{background:var(--accent);color:#fff}
+#editor{margin-top:10px;border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:#fcfcfd;max-height:60vh;overflow:auto}
+#editor h3{font-size:14px;margin:0 0 4px}
+#editor .hint{font-size:12px;color:var(--muted);margin-bottom:10px}
+.ecard{border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:10px;background:#fff}
+.ecard .t{font-weight:700;font-size:13.5px;margin-bottom:6px}
+.ecard .t span{font-weight:400;color:var(--muted);font-size:12px;margin-left:6px}
+.efield{margin-bottom:8px}
+.efield label{display:block;font-size:12px;font-weight:600;margin-bottom:3px}
+.efield textarea{width:100%;min-height:52px;resize:vertical;border:1px solid var(--line);border-radius:6px;padding:7px 9px;font:inherit;font-size:13px}
+.efield textarea.changed,.efield input.changed{border-color:var(--accent);background:#f6f9fd}
+.wordin{width:100%;border:1px solid var(--line);border-radius:6px;padding:7px 9px;font:inherit;font-size:13px}
+.exrow{border-top:1px dashed var(--line);padding:6px 0;display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start}
+.exrow pre{flex:1;margin:0;white-space:pre-wrap;word-break:break-word;font:12.5px/1.45 Consolas,"Malgun Gothic",monospace;background:#f6f7f9;border-radius:6px;padding:6px 8px}
+.exnote{flex-basis:100%;font-size:11.5px;color:#9a6a00}
+.chips{display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-top:4px;font-size:11.5px;color:var(--muted)}
+.chip{border:1px solid #b9d4f2;background:#eef5fd;color:var(--accent);border-radius:10px;padding:1px 8px;font-size:11.5px}
+.preview{font-size:12px;color:#4a5562;background:#f6f7f9;border-radius:6px;padding:5px 8px;margin-top:4px;white-space:pre-wrap}
+.preview b{color:var(--muted);font-weight:600}
+#editbar{display:flex;gap:8px;align-items:center;position:sticky;bottom:-12px;background:#fcfcfd;padding:8px 0 2px}
+#editbar button{border:0;border-radius:6px;padding:7px 14px;font-size:13px}
+#editsave{background:var(--accent);color:#fff}
+#editclose{background:var(--other);color:var(--text)}
+#editmsg{font-size:12px;color:var(--ok)}
+#reset{border:1px solid var(--line);background:#fff;border-radius:6px;padding:4px 10px;font-size:12px;color:var(--muted)}
+#steps{display:flex;gap:6px;flex-wrap:wrap}
+.step{display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:16px;font-size:12px;background:var(--other);color:var(--muted);border:1px solid transparent}
+.step.done{background:#e6f4ea;color:var(--ok)}
+.step.cur{background:#fff;border-color:var(--accent);color:var(--accent);font-weight:600}
+.step b{font-weight:700}
+#now{margin-top:10px;display:flex;gap:14px;align-items:center;background:#f6f9fd;border:1px solid #cfe0f5;border-radius:10px;padding:10px 14px}
+#now .txt{flex:1;font-size:14px;line-height:1.55}
+#now .txt .h{font-weight:700;color:var(--accent)}
+#now .txt .d{color:var(--muted);font-size:12.5px}
+#now code{background:#fff;border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:12.5px}
+#fill{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:9px 16px;font-size:14px;white-space:nowrap}
+#board{flex:1;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;padding:10px;min-height:0}
+.col{background:var(--panel);border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:column;min-height:0}
+.col.hl{box-shadow:0 0 0 3px #9cc3ee}
+.chead{padding:9px 12px;border-bottom:1px solid var(--line)}
+.chead .n{font-size:14px;font-weight:700}
+.chead .s{font-size:11.5px;color:var(--muted);margin-top:2px}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
+.tab{border:1px solid var(--line);background:#fff;border-radius:12px;padding:2px 9px;font-size:12px}
+.tab.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.tab .b{display:inline-block;background:var(--warn);color:#fff;border-radius:8px;font-size:10px;padding:0 5px;margin-left:4px}
+.tab.del{color:var(--muted);border-style:dashed}
+.tab.del:hover,.tab.del.armed{color:var(--warn);border-color:var(--warn);border-style:solid}
+.addrow{gap:6px;margin-top:6px;flex-wrap:wrap}
+.addrow input[id^="addtitle"]{flex-basis:100%;order:2}
+.addrow button{order:1}
+.addrow input{flex:1;padding:5px 8px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:12.5px}
+.addrow button{border:0;background:var(--accent);color:#fff;border-radius:6px;padding:0 12px;font-size:12.5px}
+.msgs{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:6px;min-height:0}
+.empty{color:#a0a9b4;font-size:12.5px;text-align:center;margin-top:30px}
+.m{max-width:88%;padding:6px 10px 4px;border-radius:10px;white-space:pre-wrap;word-break:break-word;font-size:13.5px;line-height:1.45;cursor:pointer;border:1px solid transparent}
+.m:hover{border-color:#9cc3ee}
+.m.r-me{align-self:flex-end;background:var(--me)}
+.m.r-auto{align-self:flex-end;background:var(--auto);border-color:#f0dc9c}
+.m.r-target{background:var(--target)}
+.m.r-mgr{background:var(--mgr)}
+.m.r-other{background:var(--other)}
+.m .who{font-size:11.5px;font-weight:700;margin-bottom:2px;color:#4a5562}
+.m.r-auto .who{color:#9a6a00}
+.m .q{border-left:3px solid var(--accent);padding:1px 6px;margin:2px 0 4px;font-size:11.5px;color:var(--muted);background:rgba(0,0,0,.035)}
+.m .tm{font-size:10px;color:#9aa3ad;text-align:right}
+.m.new{animation:flash 2.2s ease-out}
+@keyframes flash{0%{box-shadow:0 0 0 3px #f5c542}100%{box-shadow:0 0 0 0 transparent}}
+.comp{border-top:1px solid var(--line);padding:8px 10px}
+.who-row{display:flex;gap:4px;align-items:center;margin-bottom:6px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.who-btn{border:1px solid var(--line);background:#fff;border-radius:12px;padding:2px 9px;font-size:12px}
+.who-btn.on{background:#1d232b;color:#fff;border-color:#1d232b}
+.replybar{display:none;font-size:12px;background:#fff7dc;border-radius:6px;padding:4px 8px;margin-bottom:6px}
+.replybar button{float:right;border:0;background:none;padding:0 2px}
+.inrow{display:flex;gap:6px}
+.inrow textarea{flex:1;resize:none;height:38px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit;font-size:13.5px}
+.inrow button{border:0;background:var(--accent);color:#fff;border-radius:8px;padding:0 14px;font-size:13.5px}
+.err{color:var(--warn);font-size:12px;margin-top:4px;min-height:0}
+#legend{display:flex;gap:12px;font-size:11.5px;color:var(--muted);padding:0 12px 8px}
+#legend span i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+details{padding:0 10px 10px}
+details summary{font-size:12px;color:var(--muted);cursor:pointer}
+#log{background:#1f2329;color:#c9d1d9;font:11.5px/1.5 Consolas,monospace;padding:8px 10px;border-radius:8px;max-height:160px;overflow:auto;white-space:pre-wrap;margin-top:6px}
+@media (max-width:1000px){
+  html,body{height:auto}
+  #board{grid-template-columns:1fr;flex:none}
+  .col{height:420px}
+  #now{flex-direction:column;align-items:stretch}
+}
+</style>
+</head>
+<body>
+<div id="top">
+  <div id="titlerow">
+    <h1>자동응답 시뮬레이터</h1>
+    <small>실제 텔레그램과 연결 안 됨 · 실제 봇 코드 그대로 실행</small>
+    <button id="editbtn" onclick="toggleEditor()">✏️ 문구 편집</button>
+    <button id="reset" onclick="resetAll()">처음부터 다시</button>
+  </div>
+  <div id="steps"></div>
+  <div id="now"><div class="txt" id="nowtxt"></div><button id="fill" onclick="fillStep()">입력칸에 넣기</button></div>
+  <div id="editor" style="display:none"></div>
+</div>
+<div id="board">
+  <div class="col" id="c-saved"></div>
+  <div class="col" id="c-private"></div>
+  <div class="col" id="c-group"></div>
+</div>
+<div id="legend">
+  <span><i style="background:var(--me)"></i>내가 직접 보냄</span>
+  <span><i style="background:var(--auto)"></i>🤖 프로그램이 자동으로 보냄</span>
+  <span><i style="background:var(--target)"></i>대상</span>
+  <span><i style="background:var(--mgr)"></i>담당자</span>
+  <span><i style="background:var(--other)"></i>다른 배정자</span>
+  <span>· 말풍선을 누르면 그 메시지에 답장</span>
+</div>
+<details><summary>프로그램 로그 보기</summary><div id="log"></div></details>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let S = null, version = -1, seenIds = null;
+const COLS = {
+  saved:   {title: "① 나 · 저장한 메시지", sub: "명령은 여기에만 입력합니다. 프로그램 알림도 여기로 옵니다.", kind: "saved"},
+  private: {title: "② 대상과 1:1 대화", sub: "대상 역할로 메시지를 보내 봅니다.", kind: "private"},
+  group:   {title: "③ 담당자 단톡방", sub: "담당자 + 다른 배정자 + 나. 담당자 역할로 답장해 봅니다.", kind: "group"},
+};
+const UI = {saved: {chat: null, sender: null, reply: null}, private: {chat: null, sender: null, reply: null},
+            group: {chat: null, sender: null, reply: null}};
+const lastSeenCount = {};
+
+const name = id => (S.people[id] || {name: id}).name;
+const chatsOf = kind => S.chats.filter(c => c.kind === kind);
+const msgsOf = cid => S.messages.filter(m => m.chat_id === cid);
+
+function roleOf(m){
+  if (m.sender_id === S.me) return m.auto ? "auto" : "me";
+  return {"다른 배정자": "other", "대상": "target", "담당자": "mgr"}[roleLabel(m.sender_id)];
+}
+function roleLabel(uid){
+  if (uid === S.me) return "나";
+  if (uid === 777) return "다른 배정자";
+  if (uid > 9000) return "대상";
+  return "담당자";
+}
+
+function buildCols(){
+  for (const key of Object.keys(COLS)){
+    const c = COLS[key], ui = UI[key], chats = chatsOf(c.kind);
+    if (!ui.chat || !chats.some(x => x.id === ui.chat)) ui.chat = chats[0].id;
+    const chat = chats.find(x => x.id === ui.chat);
+    if (!ui.sender || !chat.senders.includes(ui.sender)) ui.sender = chat.senders[0];
+    const tabs = key === "saved" ? "" : `<div class="tabs">${chats.map(x => {
+        const unread = msgsOf(x.id).length - (lastSeenCount[x.id] ?? msgsOf(x.id).length);
+        return `<button class="tab ${x.id===ui.chat?'on':''}" onclick="pickChat('${key}',${x.id})">${esc(x.title)}${x.id!==ui.chat && unread>0?`<span class="b">${unread}</span>`:''}</button>`;}).join("")}
+        <button class="tab" onclick="toggleAdd('${key}')" title="새로 만들기">+ 추가</button>
+        ${chats.length > 1 ? `<button class="tab del" id="del-${key}" onclick="removeChat('${key}')" title="지금 선택된 대화방 지우기">− ${esc(chat.title)} 지우기</button>` : ""}</div>
+        <div class="addrow" id="add-${key}" style="display:${ui.adding?'flex':'none'}">
+          ${key === 'group'
+            ? `<input id="addin-${key}" placeholder="담당자 텔레그램 이름 (예: 박지훈)">
+               <input id="addtitle-${key}" placeholder="단톡방 제목 (예: 3월 오후조 배정방) · 비우면 '이름 단톡'">`
+            : `<input id="addin-${key}" placeholder="새 대상 이름 (예: 춘향)">`}
+          <button onclick="addPerson('${key}')">만들기</button>
+        </div>
+        <div class="err" id="adderr-${key}"></div>`;
+    const senders = chat.senders.map(s => `<button class="who-btn ${s===ui.sender?'on':''}" onclick="pickSender('${key}',${s})">${esc(name(s))} <span style="opacity:.7">(${roleLabel(s)})</span></button>`).join("");
+    $("c-" + key).innerHTML = `
+      <div class="chead"><div class="n">${c.title}</div><div class="s">${c.sub}</div>${tabs}</div>
+      <div class="msgs" id="m-${key}"></div>
+      <div class="comp">
+        <div class="who-row">보내는 사람: ${senders}</div>
+        <div class="replybar" id="rb-${key}"><button onclick="setReply('${key}',null)">✕</button><span></span></div>
+        <div class="inrow"><textarea id="in-${key}" placeholder="메시지 입력 · Enter 전송"></textarea><button onclick="send('${key}')">보내기</button></div>
+        <div class="err" id="err-${key}"></div>
+      </div>`;
+    onEnter($("in-" + key), () => send(key));
+    $("in-" + key).addEventListener("input", () => $("err-" + key).textContent = "");
+    for (const el of [$("addin-" + key), $("addtitle-" + key)]){
+      if (!el) continue;
+      onEnter(el, () => addPerson(key));
+      el.addEventListener("input", () => $("adderr-" + key).textContent = "");
+    }
+    renderMsgs(key); showReply(key);
+  }
+}
+
+/* 한글 입력 중 Enter: 첫 Enter는 글자 조합을 끝내는 데 쓰이므로, 조합이 끝난 직후에 보낸다 */
+function onEnter(el, fn){
+  let pending = false;
+  el.addEventListener("keydown", e => {
+    if (e.key !== "Enter" || e.shiftKey) return;
+    e.preventDefault();
+    if (e.isComposing || e.keyCode === 229) pending = true;
+    else fn();
+  });
+  el.addEventListener("compositionend", () => {
+    if (pending){ pending = false; setTimeout(fn, 0); }
+  });
+}
+
+function renderMsgs(key){
+  const ui = UI[key], box = $("m-" + key);
+  const byId = Object.fromEntries(S.messages.map(m => [m.id, m]));
+  const list = msgsOf(ui.chat);
+  const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+  box.innerHTML = list.length ? list.map(m => {
+    const role = roleOf(m);
+    const who = role === "auto" ? "🤖 자동 (내 계정으로 발송)" : `${name(m.sender_id)} · ${roleLabel(m.sender_id)}`;
+    const q = m.reply_to && byId[m.reply_to] ? `<div class="q">↩ ${esc(name(byId[m.reply_to].sender_id))}: ${esc(byId[m.reply_to].text.slice(0,50))}</div>` : "";
+    const isNew = seenIds && !seenIds.has(m.id);
+    return `<div class="m r-${role} ${isNew?'new':''}" onclick="setReply('${key}',${m.id})" title="눌러서 답장">
+      <div class="who">${esc(who)}</div>${q}${esc(m.text)}<div class="tm">${m.time}</div></div>`;
+  }).join("") : `<div class="empty">아직 메시지가 없습니다</div>`;
+  box.scrollTop = box.scrollHeight;
+  lastSeenCount[ui.chat] = list.length;
+}
+
+function pickChat(key, id){ UI[key].chat = id; UI[key].sender = null; UI[key].reply = null; buildCols(); }
+function pickSender(key, id){ UI[key].sender = id; buildCols(); $("in-" + key).focus(); }
+function setReply(key, id){ UI[key].reply = id; showReply(key); if (id) $("in-" + key).focus(); }
+function showReply(key){
+  const id = UI[key].reply, bar = $("rb-" + key);
+  if (!id){ bar.style.display = "none"; return; }
+  const m = S.messages.find(x => x.id === id);
+  bar.querySelector("span").textContent = `↩ 답장할 메시지: ${m ? m.text.slice(0, 50) : ""}`;
+  bar.style.display = "block";
+}
+
+async function send(key){
+  const ui = UI[key], box = $("in-" + key), text = box.value.trim();
+  if (!text) return;
+  if (key !== "saved" && text.startsWith("/")){
+    $("err-" + key).textContent = "명령은 왼쪽 ① 저장한 메시지에 입력하세요. (실제 텔레그램에서 여기에 보내면 상대에게 그대로 전송됩니다)";
+    return;
+  }
+  await fetch("/api/send", {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({chat_id: ui.chat, sender_id: ui.sender, text, reply_to: ui.reply})});
+  box.value = ""; ui.reply = null; showReply(key); poll();
+}
+
+function toggleAdd(key){
+  UI[key].adding = !UI[key].adding;
+  $("add-" + key).style.display = UI[key].adding ? "flex" : "none";
+  if (UI[key].adding) $("addin-" + key).focus();
+}
+
+async function addPerson(key){
+  const kind = key === "group" ? "manager" : "target";
+  const input = $("addin-" + key), n = input.value.trim();
+  const title = $("addtitle-" + key) ? $("addtitle-" + key).value.trim() : "";
+  if (!n){ $("adderr-" + key).textContent = key === "group" ? "담당자 이름을 입력해 주세요" : "이름을 입력해 주세요"; return; }
+  const r = await (await fetch("/api/add", {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({kind, name: n, title})})).json();
+  if (r.error){ $("adderr-" + key).textContent = r.error; return; }
+  UI[key].adding = false;
+  await poll();
+  const made = chatsOf(COLS[key].kind).slice(-1)[0];  // 방금 만든 방으로 바로 이동
+  if (made) pickChat(key, made.id);
+}
+
+/* ───────── 문구 편집 ───────── */
+let editorOpen = false, lastFocus = null, editorBase = null;
+
+function toggleEditor(){
+  editorOpen = !editorOpen;
+  $("editbtn").classList.toggle("on", editorOpen);
+  $("editor").style.display = editorOpen ? "block" : "none";
+  if (editorOpen) renderEditor();
+}
+
+function field(id, label, value, chips, previewFn){
+  const chipHtml = chips.map(c => `<button class="chip" onmousedown="event.preventDefault()" onclick="insertChip('${id}','{${c}}')">{${c}}</button>`).join("");
+  return `<div class="efield"><label for="${id}">${label}</label>
+    <textarea id="${id}" data-orig="${esc(value)}" oninput="onEditInput('${id}')" onfocus="lastFocus='${id}'">${esc(value)}</textarea>
+    ${chips.length ? `<div class="chips">눌러서 넣기: ${chipHtml}</div>` : ""}
+    ${previewFn ? `<div class="preview" id="pv-${id}"></div>` : ""}</div>`;
+}
+
+const PREVIEWS = {};
+function renderEditor(){
+  const wf = S.wf, tname = (chatsOf("private")[0] || {title: "홍길동"}).title;
+  editorBase = JSON.stringify({m: wf.managers, t: wf.template});
+  let html = `<h3>문구 편집</h3><div class="hint">고친 칸은 파란색으로 표시됩니다. [저장]을 누르면 ① 저장한 메시지로 명령이 보내져서 실제 텔레그램과 똑같이 저장됩니다.
+    <b>{대상} {담당자} {번호}</b>는 아래 버튼으로 넣으면 보낼 때 실제 이름·번호로 바뀝니다.</div>`;
+  html += `<div class="ecard"><div class="t">단톡방 준비 확인요청 문구 <span>모든 담당자 공통 · 6단계에 자동으로 올라감</span></div>
+    ${field("ed-tpl", "요청 문구", wf.template, ["번호", "대상", "담당자"], true)}
+    <button class="chip" onclick="resetTemplate()">처음 문구로 되돌리기</button></div>`;
+  html += `<div class="ecard"><div class="t">알아듣는 말 <span>쉼표로 구분 · 문장 안에 들어 있기만 하면 됩니다</span></div>
+    <div class="efield"><label for="ed-cw">대상이 이 말을 하면 ①로 📦 알림 (6단계) · 지금: ${wf.auto_request ? "자동 요청 켜짐 (/자동요청 끄기)" : "알림만, 단톡방 요청은 /완성 으로 직접"}</label>
+      <input class="wordin" id="ed-cw" data-orig="${esc(wf.completion_words.join(", "))}" value="${esc(wf.completion_words.join(", "))}" oninput="onEditInput('ed-cw')">
+      <div class="preview">예약 확정된 대상이 이 말이 들어간 메시지를 보내면 ①로 원문과 함께 📦 알림이 옵니다. 직접 확인하고 <code>/완성 대상이름</code> 을 보내야 단톡방에 요청이 올라갑니다.</div></div>
+    <div class="efield"><label for="ed-fw">담당자가 쓰면 '준비됨'으로 볼 말 (7단계)</label>
+      <input class="wordin" id="ed-fw" data-orig="${esc(wf.confirm_words.join(", "))}" value="${esc(wf.confirm_words.join(", "))}" oninput="onEditInput('ed-fw')">
+      <div class="preview">예: "확인, 올려" → "올려주세요", "올려주세여", "확인했습니다" 모두 준비됨. "나중에 올려주세요", "아직 확인 못했어요"는 무시합니다.</div></div>
+    <button class="chip" onclick="resetWords()">처음 값으로 되돌리기</button></div>`;
+  PREVIEWS["ed-tpl"] = v => (v.includes("{번호}") ? "" : "[#1] ") + v.replaceAll("{번호}", "1").replaceAll("{대상}", tname).replaceAll("{담당자}", (wf.managers[0] || {name: "박"}).name);
+  if (!wf.managers.length){
+    html += `<div class="ecard"><div class="t">담당자별 문구</div><div class="hint">등록된 담당자가 없습니다. 먼저 ①에 <code>/담당자추가 이름 | 단톡방 | 주소</code> 로 등록하세요.</div></div>`;
+  }
+  wf.managers.forEach((m, i) => {
+    html += `<div class="ecard"><div class="t">담당자 ${esc(m.name)} <span>${esc(m.group_title || "")}</span></div>
+      ${field("ed-addr-" + i, "주소 (7단계에 대상에게 보냄)", m.address, [], false)}
+      ${field("ed-guide-" + i, "안내 문구 (5단계 예약 확정 때 대상에게 보냄)", m.guide, ["대상", "담당자"], true)}</div>`;
+    PREVIEWS["ed-guide-" + i] = v => v.replaceAll("{대상}", tname).replaceAll("{담당자}", m.name);
+  });
+  html += exportCard();
+  html += `<div id="editbar"><button id="editsave" onclick="saveEditor()">저장</button><button id="editclose" onclick="toggleEditor()">닫기</button><span id="editmsg"></span></div>`;
+  $("editor").innerHTML = html;
+  Object.keys(PREVIEWS).forEach(id => $(id) && updatePreview(id));
+}
+
+function updatePreview(id){
+  const pv = $("pv-" + id);
+  if (!pv || !PREVIEWS[id]) return;
+  const allowed = id === "ed-tpl" ? ["{번호}", "{대상}", "{담당자}"] : ["{대상}", "{담당자}"];
+  const v = $(id).value, bad = (v.match(/\{[^{}]*\}/g) || []).filter(x => !allowed.includes(x));
+  pv.innerHTML = bad.length
+    ? `<span style="color:var(--warn)">⚠️ ${esc(bad.join(" "))} 는 쓸 수 없는 자리표시입니다. 아래 버튼으로 넣어 주세요.</span>`
+    : `<b>미리보기 (대상: ${esc((chatsOf("private")[0] || {}).title || "")})</b>\n${esc(PREVIEWS[id](v))}`;
+}
+
+function onEditInput(id){
+  const el = $(id);
+  el.classList.toggle("changed", el.value !== el.dataset.orig);
+  updatePreview(id);
+  $("editmsg").textContent = "";
+}
+
+function insertChip(id, text){
+  const el = $(id);
+  const s = el.selectionStart ?? el.value.length, e = el.selectionEnd ?? el.value.length;
+  el.value = el.value.slice(0, s) + text + el.value.slice(e);
+  el.focus(); el.selectionStart = el.selectionEnd = s + text.length;
+  onEditInput(id);
+}
+
+function resetTemplate(){ $("ed-tpl").value = S.wf.default_template; onEditInput("ed-tpl"); }
+function resetWords(){
+  $("ed-cw").value = S.wf.default_completion_words.join(", "); onEditInput("ed-cw");
+  $("ed-fw").value = S.wf.default_confirm_words.join(", "); onEditInput("ed-fw");
+}
+const wordsKey = v => v.split(/[,，\n]/).map(x => x.trim()).filter(Boolean).join(", ");
+
+/* 저장된 설정을 실제 텔레그램 '저장한 메시지'에 그대로 보낼 명령으로 만들어 준다 */
+function exportCommands(){
+  const wf = S.wf, cmds = [];
+  wf.managers.forEach(m => cmds.push({cmd: `/담당자추가 ${m.name} | ${m.group_title} | ${m.address}`,
+    note: `'${m.group_title}' 자리에 실제 단톡방 제목(일부)을 쓰세요. 담당자를 못 찾으면 멤버 목록이 나옵니다.`}));
+  wf.managers.filter(m => m.guide).forEach(m => cmds.push({cmd: `/안내문구 ${m.name} | ${m.guide}`}));
+  if (wf.template !== wf.default_template) cmds.push({cmd: `/요청문구 ${wf.template}`});
+  if (wf.completion_words.join(", ") !== wf.default_completion_words.join(", ")) cmds.push({cmd: `/완성단어 ${wf.completion_words.join(", ")}`});
+  if (wf.confirm_words.join(", ") !== wf.default_confirm_words.join(", ")) cmds.push({cmd: `/확인단어 ${wf.confirm_words.join(", ")}`});
+  return cmds;
+}
+function exportCard(){
+  const cmds = exportCommands();
+  const body = cmds.length ? cmds.map((c, i) => `<div class="exrow"><pre id="ex-${i}">${esc(c.cmd)}</pre>
+      <button class="chip" onclick="copyEx(${i})" id="exb-${i}">복사</button>${c.note ? `<div class="exnote">⚠️ ${esc(c.note)}</div>` : ""}</div>`).join("")
+    : `<div class="hint">아직 저장된 설정이 없습니다. 위에서 저장하면 여기에 나옵니다.</div>`;
+  return `<div class="ecard"><div class="t">📋 실제 텔레그램에 옮기기 <span>위에서 [저장]한 내용 기준</span></div>
+    <div class="hint">실제 텔레그램에는 이 편집 화면이 없습니다. 아래 명령을 <b>하나씩</b> 복사해서 실제 '저장한 메시지'에 보내면 똑같이 설정됩니다. (위에서부터 순서대로)</div>${body}</div>`;
+}
+async function copyEx(i){
+  const text = $("ex-" + i).textContent;
+  try { await navigator.clipboard.writeText(text); }
+  catch (e) {
+    const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta);
+    ta.select(); document.execCommand("copy"); ta.remove();
+  }
+  $("exb-" + i).textContent = "복사됨 ✓";
+  setTimeout(() => { const b = $("exb-" + i); if (b) b.textContent = "복사"; }, 1500);
+}
+
+function editMsg(text, color){ $("editmsg").style.color = color; $("editmsg").textContent = text; }
+
+async function saveEditor(){
+  const cmds = [];
+  if (document.querySelector("#editor .preview span")) return editMsg("⚠️ 쓸 수 없는 자리표시가 있습니다. 빨간 안내를 확인하세요.", "var(--warn)");
+  const tpl = $("ed-tpl");
+  if (tpl.value.trim() !== tpl.dataset.orig.trim()){
+    cmds.push(tpl.value.trim() === S.wf.default_template.trim() || !tpl.value.trim() ? "/요청문구 기본" : "/요청문구 " + tpl.value.trim());
+  }
+  for (const [i, m] of S.wf.managers.entries()){
+    const a = $("ed-addr-" + i), g = $("ed-guide-" + i);
+    if (a.value.trim() !== a.dataset.orig.trim()){
+      if (!a.value.trim()) return editMsg(`⚠️ ${m.name} 주소가 비어 있습니다`, "var(--warn)");
+      cmds.push(`/담당자주소 ${m.name} | ${a.value.trim()}`);
+    }
+    if (g.value.trim() !== g.dataset.orig.trim()) cmds.push(`/안내문구 ${m.name} | ${g.value.trim()}`);
+  }
+  for (const [id, cmd, def] of [["ed-cw", "/완성단어", S.wf.default_completion_words], ["ed-fw", "/확인단어", S.wf.default_confirm_words]]){
+    const el = $(id), v = wordsKey(el.value);
+    if (v === wordsKey(el.dataset.orig)) continue;
+    if (!v) return editMsg("⚠️ 알아듣는 말은 하나 이상 있어야 합니다", "var(--warn)");
+    cmds.push(v === def.join(", ") ? `${cmd} 기본` : `${cmd} ${v}`);
+  }
+  if (!cmds.length) return editMsg("바뀐 내용이 없습니다", "var(--muted)");
+  for (const text of cmds){
+    await fetch("/api/send", {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({chat_id: S.me, sender_id: S.me, text})});
+    await new Promise(r => setTimeout(r, 350));
+  }
+  await poll();
+  renderEditor();
+  editMsg(`✅ ${cmds.length}개 저장했습니다. 결과는 ① 저장한 메시지에서 확인하세요.`, "var(--ok)");
+}
+
+let delArmed = null;
+async function removeChat(key){
+  const ui = UI[key], btn = $("del-" + key), chat = S.chats.find(c => c.id === ui.chat);
+  if (delArmed !== ui.chat){  // 실수 방지: 한 번 더 눌러야 지운다
+    delArmed = ui.chat;
+    btn.textContent = key === "group"
+      ? `정말 '${chat.title}' 지울까요? (등록된 담당자도 삭제) 한 번 더`
+      : `정말 '${chat.title}' 지울까요? 한 번 더`;
+    btn.classList.add("armed");
+    setTimeout(() => { if (delArmed === chat.id){ delArmed = null; buildCols(); } }, 4000);
+    return;
+  }
+  delArmed = null;
+  const r = await (await fetch("/api/remove", {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({chat_id: ui.chat})})).json();
+  if (r.error){ $("adderr-" + key).textContent = r.error; return; }
+  ui.chat = null; ui.reply = null;
+  poll();
+}
+
+let resetArmed = false;
+async function resetAll(){
+  const btn = $("reset");
+  if (!resetArmed){  // 실수 방지: 한 번 더 눌러야 지운다
+    resetArmed = true;
+    btn.textContent = "정말 모두 지울까요? 한 번 더 누르기";
+    btn.style.color = "var(--warn)"; btn.style.borderColor = "var(--warn)";
+    setTimeout(() => { resetArmed = false; btn.textContent = "처음부터 다시"; btn.style.color = ""; btn.style.borderColor = ""; }, 4000);
+    return;
+  }
+  resetArmed = false;
+  btn.textContent = "처음부터 다시"; btn.style.color = ""; btn.style.borderColor = "";
+  await fetch("/api/reset", {method: "POST"});
+  skipOptional = false; poll();
+}
+
+/* ───────── 단계 안내 ───────── */
+function steps(){
+  const wf = S.wf, mgr = wf.managers[0], mname = mgr ? mgr.name : "박";
+  const tChat = chatsOf("private")[0], tname = tChat.title;
+  const caseT = [...wf.cases].reverse().find(c => c.target_name === tname);
+  const st = caseT ? caseT.status : null;
+  const groupOf = n => { const m = wf.managers.find(x => x.name === n); return m ? m.group_id : chatsOf("group")[0].id; };
+  const talked = msgsOf(tChat.id).some(m => !m.auto);
+  const requested = ["확인대기", "발송중", "완료"].includes(st);
+  const words = wf.completion_words.map(w => w.replace(/\s/g, ""));
+  const saidDone = msgsOf(tChat.id).some(m => m.sender_id === tChat.id && words.some(w => m.text.replace(/\s/g, "").includes(w)));
+  return [
+    {label: "담당자 등록", done: wf.managers.length > 0, col: "saved",
+     how: `왼쪽 ①에 담당자를 등록합니다. 형식: <code>/담당자추가 부를이름 | 단톡방 제목 일부 | 주소</code><br>
+           단톡방 제목에 담당자 이름이 없어도 됩니다. 그 단톡방 멤버 중 '부를이름'이 들어간 사람을 담당자로 잡습니다.`,
+     fill: (() => {
+       const g = chatsOf("group")[0], person = g ? name(g.senders[0]) : "박담당";
+       const call = person.length > 2 ? person.slice(0, 1) : person;  // 박지훈 → 박
+       return {key: "saved", text: `/담당자추가 ${call} | ${g ? g.title : "박 담당"} | 서울시 강남구 테스트로 1`};
+     })()},
+    {label: "안내 문구", done: wf.managers.some(m => m.guide), col: "saved",
+     how: `예약 확정 때 대상에게 자동으로 보낼 문구입니다. <code>{대상}</code> <code>{담당자}</code>는 <b>글자 그대로</b> 쓰세요. 보낼 때 실제 이름으로 바뀝니다.`,
+     fill: {key: "saved", text: `/안내문구 ${mname} | {대상}님, {담당자} 담당자로 예약 확정되었습니다. 완성되면 '완성'이라고 알려주세요.`}},
+    {label: "1~4 문의·협의 (직접)", done: talked || !!caseT, optional: true, col: "private",
+     how: `실제로는 직접 하는 대화입니다. 가운데 ②에서 <b>${esc(tname)}</b> 역할로 문의를 보내고, <b>나</b>로 바꿔 답해 보세요. 프로그램은 이 단계에 관여하지 않습니다. (건너뛰어도 됩니다)`,
+     fill: {key: "private", sender: tChat.senders[0], text: `${mname}담당 3시 가능한가요?`}},
+    {label: "5 예약 확정", done: !!caseT, col: "saved",
+     how: `대상이 예약을 확정했다고 치고, 왼쪽 ①에 <code>/확정 ${esc(tname)} ${esc(mname)}</code> 을 보냅니다. → 🤖 안내 문구가 ②로 자동 발송됩니다.`,
+     fill: {key: "saved", text: `/확정 ${tname} ${mname}`}},
+    {label: "6 대상 완성 알림", done: requested || (!!caseT && saidDone), col: "private",
+     how: `가운데 ②에서 <b>${esc(tname)}</b> 역할로 완성 알림을 보냅니다. → 🤖 ①에 📦 알림이 옵니다. (단톡방에는 아직 아무것도 안 갑니다)`,
+     fill: {key: "private", sender: tChat.senders[0], text: `사장님 ${wf.completion_words[0] || "완성"}했어요!`}},
+    {label: "6 직접 확인 → /완성", done: requested, col: "saved",
+     how: `완성이 맞는지 직접 확인했다고 치고, 왼쪽 ①에 <code>/완성 ${esc(tname)}</code> 을 보냅니다. → 🤖 ③ 단톡방에 준비 확인요청이 올라갑니다.`,
+     fill: {key: "saved", text: `/완성 ${tname}`}},
+    {label: "7 담당자 답장", done: st === "완료", col: "group",
+     how: `오른쪽 ③에서 <b>담당자</b> 역할로 "올려주세요"(또는 "확인")를 보냅니다. 요청 메시지에 답장해도 되고 그냥 보내도 됩니다. → 🤖 ②에 주소가 자동 발송됩니다. (요청 뒤에 <b>다른배정자</b>가 말했다면, 답장이 아닌 확인은 자동으로 보내지 않고 ①로 알려 줍니다)`,
+     fill: caseT && caseT.request_msg_id ? {key: "group", chat: caseT.request_chat_id, sender: (wf.managers.find(m => m.name === caseT.manager) || {}).user_id,
+            text: "올려주세요"} : {key: "group", chat: groupOf(mname), text: "올려주세요"}},
+  ];
+}
+
+let current = null, skipOptional = false;
+function skipStep(){ skipOptional = true; renderSteps(); }
+function renderSteps(){
+  const list = steps();
+  const curIdx = list.findIndex(s => !s.done && !(s.optional && skipOptional));
+  current = curIdx === -1 ? null : list[curIdx];
+  $("steps").innerHTML = list.map((s, i) =>
+    `<div class="step ${s.done?'done':''} ${i===curIdx?'cur':''}">${s.done?'✓':'○'} ${esc(s.label)}</div>`).join("");
+  document.querySelectorAll(".col").forEach(c => c.classList.remove("hl"));
+  if (!current){
+    $("nowtxt").innerHTML = `<div class="h">🎉 한 바퀴 완료!</div><div class="d">② 대상 대화에 🤖 주소가 자동으로 간 것을 확인해 보세요. '처음부터 다시'를 누르거나, 다른 대상(+ 추가)으로 다시 해 볼 수 있습니다.</div>`;
+    $("fill").style.display = "none";
+    return;
+  }
+  $("nowtxt").innerHTML = `<div class="h">지금 할 일 · ${esc(current.label)}</div><div>${current.how}</div>`
+    + (current.optional ? `<div class="d"><a href="#" onclick="skipStep();return false">이 단계 건너뛰기</a></div>` : "");
+  $("fill").style.display = "";
+  $("c-" + current.col).classList.add("hl");
+}
+
+function fillStep(){
+  if (!current) return;
+  const f = current.fill, ui = UI[f.key];
+  if (f.chat) ui.chat = f.chat;
+  ui.sender = f.sender || null;
+  buildCols();
+  if (f.sender) { ui.sender = f.sender; buildCols(); }
+  if (f.reply){ ui.reply = f.reply; showReply(f.key); }
+  $("in-" + f.key).value = f.text;
+  $("in-" + f.key).focus();
+}
+
+async function poll(){
+  try {
+    const r = await (await fetch("/api/state")).json();
+    if (r.version !== version){
+      const first = S === null;
+      version = r.version; S = r;
+      if (first) { seenIds = new Set(S.messages.map(m => m.id)); }
+      const drafts = {};
+      for (const id of Object.keys(COLS).flatMap(k => ["in-" + k, "addin-" + k, "addtitle-" + k])) { const el = $(id); if (el) drafts[id] = el.value; }
+      buildCols();
+      for (const id of Object.keys(drafts)) { const el = $(id); if (el) el.value = drafts[id]; }
+      seenIds = new Set(S.messages.map(m => m.id));
+    } else { S.wf = r.wf; }
+    renderSteps();
+    $("log").textContent = r.log || "(아직 기록 없음)";
+  } catch (e) {}
+}
+poll(); setInterval(poll, 700);
+</script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+# ── 절대 올리면 안 되는 것 (계정 접속 정보) ──
+config.json
+*.session
+*.session-journal
+
+# ── 개인 정보가 들어 있는 데이터 (주소, 진행 중인 건) ──
+rules.json
+automation.db
+*.db
+*.log
+
+# ── 시뮬레이터 데이터 ──
+simulator/data/
+
+# ── 기타 ──
+__pycache__/
+*.pyc
+.claude/settings.local.json

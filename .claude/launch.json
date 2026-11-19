@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "simulator",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["simulator/sim_server.py"],
+      "port": 8765
+    },
+    {
+      "name": "mobile-page",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8770", "--bind", "127.0.0.1", "--directory", "simulator"],
+      "port": 8770
+    }
+  ]
+}

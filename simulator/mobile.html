@@ -1,0 +1,997 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>배정 자동응답 연습장</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+/* 레이아웃: 위 = 단계 안내, 아래 = 대화방 세 칸(폰에서는 탭 하나씩) */
+:root{
+  --bg:#eef1f3; --panel:#ffffff; --sunk:#f5f7f8; --line:#dde2e6; --text:#1b2228; --muted:#68737d; --faint:#9aa4ad;
+  --accent:#2a78c5; --accent-weak:#e6f0fa; --accent-line:#b7d2ee;
+  --me:#d9f0cc; --me-line:#c3e3b0; --auto:#fff1c9; --auto-line:#ecd88e; --auto-ink:#7d5a00;
+  --target:#e4eefb; --mgr:#f1e7fa; --other:#eceff2; --ok:#1f8a43; --ok-weak:#e3f3e8; --warn:#c2382b; --warn-weak:#fdecea;
+  --font:"Noto Sans KR","Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;
+  --mono:ui-monospace,Consolas,"Malgun Gothic",monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12171b; --panel:#1b2228; --sunk:#151b20; --line:#2c353d; --text:#e4e9ed; --muted:#9aa6b0; --faint:#6c7882;
+  --accent:#6aa9e8; --accent-weak:#1d2f42; --accent-line:#2f4f70;
+  --me:#24402a; --me-line:#335a3b; --auto:#3d3418; --auto-line:#5e4f20; --auto-ink:#f0cd6a;
+  --target:#1f3044; --mgr:#33264a; --other:#262d34; --ok:#5cc983; --ok-weak:#1b3324; --warn:#f07b6f; --warn-weak:#3b201d;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12171b; --panel:#1b2228; --sunk:#151b20; --line:#2c353d; --text:#e4e9ed; --muted:#9aa6b0; --faint:#6c7882;
+  --accent:#6aa9e8; --accent-weak:#1d2f42; --accent-line:#2f4f70;
+  --me:#24402a; --me-line:#335a3b; --auto:#3d3418; --auto-line:#5e4f20; --auto-ink:#f0cd6a;
+  --target:#1f3044; --mgr:#33264a; --other:#262d34; --ok:#5cc983; --ok-weak:#1b3324; --warn:#f07b6f; --warn-weak:#3b201d;
+  color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;font-family:var(--font);font-size:14px;background:var(--bg);color:var(--text);display:flex;flex-direction:column;
+  padding-left:max(0px, env(safe-area-inset-left, 0px));padding-right:max(0px, env(safe-area-inset-right, 0px))}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+code{font-family:var(--mono);font-size:12.5px;background:var(--sunk);border:1px solid var(--line);border-radius:4px;padding:0 4px;word-break:break-all}
+
+#top{background:var(--panel);border-bottom:1px solid var(--line);padding:10px max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px))}
+#titlerow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+#titlerow h1{font-size:16px;margin:0;font-weight:700;text-wrap:balance}
+#titlerow small{color:var(--muted);font-size:12px}
+.tbtn{border:1px solid var(--line);background:var(--panel);border-radius:7px;padding:5px 10px;font-size:12.5px;color:var(--muted)}
+#editbtn{margin-left:auto;border-color:var(--accent);color:var(--accent)}
+#editbtn.on{background:var(--accent);color:var(--panel)}
+#reset.armed{color:var(--warn);border-color:var(--warn)}
+#steps{display:flex;gap:5px;flex-wrap:wrap}
+.step{display:flex;align-items:center;gap:5px;padding:4px 9px;border-radius:14px;font-size:12px;background:var(--sunk);color:var(--muted);border:1px solid transparent}
+.step.done{background:var(--ok-weak);color:var(--ok)}
+.step.cur{background:var(--panel);border-color:var(--accent);color:var(--accent);font-weight:700}
+#now{margin-top:9px;display:flex;gap:12px;align-items:center;background:var(--accent-weak);border:1px solid var(--accent-line);border-radius:10px;padding:9px 12px}
+#now .txt{flex:1;min-width:0;font-size:13.5px;line-height:1.6}
+#now .h{font-weight:700;color:var(--accent)}
+#now .d{color:var(--muted);font-size:12.5px}
+#now a{color:var(--accent)}
+.nowbtns{display:flex;gap:6px}
+#fold{display:none}
+#fill{background:var(--accent);color:var(--panel);border:0;border-radius:8px;padding:9px 14px;font-size:13.5px;white-space:nowrap;font-weight:500}
+
+#tabs{display:none}
+#board{flex:1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:10px max(10px, env(safe-area-inset-right, 0px)) 10px max(10px, env(safe-area-inset-left, 0px));min-height:0}
+.col{background:var(--panel);border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:column;min-height:0;min-width:0}
+.col.hl{box-shadow:0 0 0 3px var(--accent-line)}
+.chead{padding:9px 12px;border-bottom:1px solid var(--line)}
+.chead .n{font-size:14px;font-weight:700}
+.chead .s{font-size:11.5px;color:var(--muted);margin-top:2px}
+.tabsrow{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
+.tab{border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:2px 9px;font-size:12px}
+.tab.on{background:var(--accent);border-color:var(--accent);color:var(--panel)}
+.tab.del{color:var(--muted);border-style:dashed}
+.tab.del.armed{color:var(--warn);border-color:var(--warn);border-style:solid}
+.badge{display:inline-block;background:var(--warn);color:#fff;border-radius:8px;font-size:10px;padding:0 5px;margin-left:4px;font-weight:700}
+.addrow{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+.addrow input{flex:1 1 140px;min-width:0;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:13px;background:var(--panel)}
+.addrow button{border:0;background:var(--accent);color:var(--panel);border-radius:6px;padding:6px 12px;font-size:12.5px}
+.msgs{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:6px;min-height:0}
+.empty{color:var(--faint);font-size:12.5px;text-align:center;margin-top:30px}
+.m{max-width:88%;padding:6px 10px 4px;border-radius:10px;white-space:pre-wrap;word-break:break-word;font-size:13.5px;line-height:1.5;cursor:pointer;border:1px solid transparent;background:none;text-align:left}
+.m:hover{border-color:var(--accent-line)}
+.m.r-me{align-self:flex-end;background:var(--me);border-color:var(--me-line)}
+.m.r-auto{align-self:flex-end;background:var(--auto);border-color:var(--auto-line)}
+.m.r-target{background:var(--target)}
+.m.r-mgr{background:var(--mgr)}
+.m.r-other{background:var(--other)}
+.m .who{font-size:11.5px;font-weight:700;margin-bottom:2px;color:var(--muted)}
+.m.r-auto .who{color:var(--auto-ink)}
+.m .q{border-left:3px solid var(--accent);padding:1px 6px;margin:2px 0 4px;font-size:11.5px;color:var(--muted);background:var(--sunk)}
+.m .tm{font-size:10px;color:var(--faint);text-align:right;font-variant-numeric:tabular-nums}
+.m.new{animation:flash 2.2s ease-out}
+@keyframes flash{0%{box-shadow:0 0 0 3px var(--auto-line)}100%{box-shadow:0 0 0 0 transparent}}
+@media (prefers-reduced-motion: reduce){.m.new{animation:none}}
+.comp{border-top:1px solid var(--line);padding:8px 10px}
+.who-row{display:flex;gap:4px;align-items:center;margin-bottom:6px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.who-btn{border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:2px 9px;font-size:12px}
+.who-btn.on{background:var(--text);color:var(--panel);border-color:var(--text)}
+.replybar{font-size:12px;background:var(--auto);border-radius:6px;padding:4px 8px;margin-bottom:6px;display:flex;gap:6px}
+.replybar span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.replybar button{border:0;background:none;padding:0 2px}
+.inrow{display:flex;gap:6px}
+.inrow textarea{flex:1;min-width:0;resize:none;height:40px;border:1px solid var(--line);border-radius:8px;padding:9px 10px;font-size:14px;background:var(--panel)}
+.inrow button{border:0;background:var(--accent);color:var(--panel);border-radius:8px;padding:0 14px;font-size:13.5px;font-weight:500}
+.err{color:var(--warn);font-size:12px;margin-top:4px}
+#legend{display:flex;gap:10px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);padding:0 max(12px, env(safe-area-inset-right, 0px)) 8px max(12px, env(safe-area-inset-left, 0px))}
+#legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px;border:1px solid var(--line)}
+
+#editor{margin-top:10px;border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--sunk);max-height:62vh;overflow:auto}
+#editor h3{font-size:14px;margin:0 0 4px}
+.hint{font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.55}
+.ecard{border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:10px;background:var(--panel)}
+.ecard .t{font-weight:700;font-size:13.5px;margin-bottom:6px}
+.ecard .t span{font-weight:400;color:var(--muted);font-size:12px;margin-left:6px}
+.efield{margin-bottom:8px}
+.efield label{display:block;font-size:12px;font-weight:700;margin-bottom:3px}
+.efield textarea,.efield input{width:100%;border:1px solid var(--line);border-radius:6px;padding:7px 9px;font-size:13px;background:var(--panel)}
+.efield textarea{min-height:56px;resize:vertical}
+.efield .changed{border-color:var(--accent);background:var(--accent-weak)}
+.chips{display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-top:4px;font-size:11.5px;color:var(--muted)}
+.chip{border:1px solid var(--accent-line);background:var(--accent-weak);color:var(--accent);border-radius:10px;padding:1px 8px;font-size:11.5px}
+.preview{font-size:12px;color:var(--muted);background:var(--sunk);border-radius:6px;padding:5px 8px;margin-top:4px;white-space:pre-wrap;line-height:1.5}
+.preview .bad{color:var(--warn)}
+.exrow{border-top:1px dashed var(--line);padding:6px 0;display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start}
+.exrow pre{flex:1;min-width:0;margin:0;white-space:pre-wrap;word-break:break-word;font:12.5px/1.45 var(--mono);background:var(--sunk);border-radius:6px;padding:6px 8px}
+.exnote{flex-basis:100%;font-size:11.5px;color:var(--auto-ink)}
+#editbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;position:sticky;bottom:-12px;background:var(--sunk);padding:8px 0 2px}
+#editbar button{border:0;border-radius:6px;padding:7px 14px;font-size:13px}
+#editsave{background:var(--accent);color:var(--panel)}
+#editclose{background:var(--other)}
+#editmsg{font-size:12px}
+
+/* 폰: 세 칸을 탭으로 하나씩 */
+@media (max-width:760px){
+  #titlerow small{display:none}
+  #now{flex-direction:column;align-items:stretch;gap:8px}
+  #now.folded .txt div:not(.h){display:none}
+  .nowbtns #fill{flex:1}
+  #fold{display:inline-block}
+  body.folded #steps{display:none}
+  #tabs{display:flex;gap:6px;padding:8px max(10px, env(safe-area-inset-right, 0px)) 0 max(10px, env(safe-area-inset-left, 0px))}
+  #tabs button{flex:1;border:1px solid var(--line);background:var(--panel);border-radius:9px 9px 0 0;padding:8px 4px;font-size:13px;color:var(--muted);position:relative}
+  #tabs button.on{color:var(--text);font-weight:700;border-color:var(--accent);box-shadow:inset 0 -3px 0 var(--accent)}
+  #tabs button.hl::after{content:"";position:absolute;top:6px;right:8px;width:7px;height:7px;border-radius:50%;background:var(--accent)}
+  #board{grid-template-columns:minmax(0,1fr);padding-top:0}
+  .col{display:none;border-top-left-radius:0;border-top-right-radius:0}
+  .col.show{display:flex}
+  .m{max-width:92%}
+}
+</style>
+
+<div id="top">
+  <div id="titlerow">
+    <h1>배정 자동응답 연습장</h1>
+    <small>실제 텔레그램과 연결 안 됨 · 내 브라우저에만 저장</small>
+    <button class="tbtn" id="editbtn" type="button">✏️ 문구 편집</button>
+    <button class="tbtn" id="reset" type="button">처음부터 다시</button>
+  </div>
+  <div id="steps"></div>
+  <div id="now"><div class="txt" id="nowtxt"></div><div class="nowbtns"><button id="fill" type="button">입력칸에 넣기</button><button id="fold" type="button" class="tbtn">안내 접기</button></div></div>
+  <div id="editor" hidden></div>
+</div>
+<div id="tabs" role="tablist"></div>
+<div id="board">
+  <section class="col" id="c-saved"></section>
+  <section class="col" id="c-private"></section>
+  <section class="col" id="c-group"></section>
+</div>
+<div id="legend">
+  <span><i style="background:var(--me)"></i>내가 직접 보냄</span>
+  <span><i style="background:var(--auto)"></i>🤖 프로그램이 자동으로 보냄</span>
+  <span><i style="background:var(--target)"></i>대상</span>
+  <span><i style="background:var(--mgr)"></i>담당자</span>
+  <span><i style="background:var(--other)"></i>다른 배정자</span>
+  <span>· 말풍선을 누르면 그 메시지에 답장</span>
+</div>
+
+<script>
+"use strict";
+/* ═══════════════════ 1. 판단 규칙 (workflow.py 와 같은 규칙) ═══════════════════ */
+const ME = 1, OTHER = 777;
+const WAIT_ASSIGN = "담당자대기", WAIT_COMPLETE = "완성대기", WAIT_CONFIRM = "확인대기",
+      SENDING = "발송중", DONE = "완료", CANCELED = "취소";
+const OPEN_STATES = [WAIT_ASSIGN, WAIT_COMPLETE, WAIT_CONFIRM, SENDING];
+const COMPLETION_WORDS = ["완성"], CONFIRM_WORDS = ["확인", "올려"], REJECT_WORD = "반려";
+const NEGATIONS = ["못", "아직", "안됨", "안돼", "안되", "불가", "보류", "반려", "나중", "말아", "마세요"];
+const NOT_YET = ["아직", "언제", "안됐", "안되", "못했", "거의", "반쯤", "절반", "?"];
+const DONE_SUFFIXES = ["했", "됐", "되었", "됨", "돼써", "났", "완료", "입니다", "이에요", "예요", "이요", "요"];
+const DONE_INSIDE = ["했", "됐", "되었", "됨", "났"];
+const DEFAULT_TEMPLATE = "[#{번호}] {대상} 님 완성됐습니다.\n준비되셨으면 '확인' 또는 '올려주세요'라고 남겨 주세요. (이 메시지에 답장하면 더 정확합니다)";
+const MAX_LEN = 4000;
+
+const normalize = t => (t || "").replace(/\s+/g, "").toLowerCase();
+const escRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const preview = (t, n = 40) => { const one = (t || "").split(/\s+/).filter(Boolean).join(" "); return one.length <= n ? one : one.slice(0, n) + "…"; };
+
+function parseWords(raw){
+  const out = [];
+  for (let w of (raw || "").split(/[,，\n]/)){ w = w.trim(); if (w && !out.some(x => normalize(x) === normalize(w))) out.push(w); }
+  return out;
+}
+const mentionsCompletion = (text, words) => { const n = normalize(text); return words.some(w => normalize(w) && n.includes(normalize(w))); };
+function isCompletion(text, words){
+  const norm = normalize(text);
+  if (NOT_YET.some(n => norm.includes(n))) return false;
+  const core = norm.replace(/[!.~^♡♥ㅎㅋ👍🙏😊]+$/u, "");
+  for (const w of words.map(normalize)){
+    if (!w || !norm.includes(w) || norm.includes("미" + w)) continue;
+    if (DONE_INSIDE.some(d => w.includes(d))) return true;
+    const re = new RegExp(escRe(w), "g"); let m;
+    while ((m = re.exec(norm))){ if (DONE_SUFFIXES.some(s => norm.slice(m.index + w.length).startsWith(s))) return true; }
+    if (core.endsWith(w)) return true;
+  }
+  return false;
+}
+function classifyReply(text, words){
+  const n = normalize(text);
+  if (n.includes(REJECT_WORD)) return "reject";
+  if (words.some(w => normalize(w) && n.includes(normalize(w))) && !NEGATIONS.some(x => n.includes(x))) return "confirm";
+  return null;
+}
+function render(tpl, id, target, mgr){
+  let t = tpl.split("{번호}").join(String(id)).split("{대상}").join(target || "").split("{담당자}").join(mgr || "");
+  if (!tpl.includes("{번호}")) t = `[#${id}] ` + t;
+  return t;
+}
+const renderGuide = (g, target, mgr) => g.split("{대상}").join(target || "").split("{담당자}").join(mgr || "");
+const unknownPlaceholders = (text, allowed) => (text.match(/\{[^{}]*\}/g) || []).map(x => x.slice(1, -1)).filter(x => !allowed.includes(x));
+
+/* ═══════════════════ 2. 저장 상태 (이 브라우저에만) ═══════════════════ */
+const STORE_KEY = "assign-autoreply-sim-v1";
+function seed(){
+  return {
+    people: {1: {name: "나", username: "me"}, 501: {name: "박담당", username: "parkdam"}, 502: {name: "김담당", username: "kimdam"},
+             777: {name: "다른배정자", username: "disp2"}, 9001: {name: "홍길동", username: "hong"}, 9002: {name: "이몽룡", username: "lee"}},
+    groups: {"-100501": {title: "박 담당 단톡", members: [1, 501, 777]}, "-100502": {title: "김 담당 단톡", members: [1, 502, 777]}},
+    chats: [{id: 1, title: "저장한 메시지", kind: "saved", senders: [1]},
+            {id: 9001, title: "홍길동", kind: "private", senders: [9001, 1]},
+            {id: 9002, title: "이몽룡", kind: "private", senders: [9002, 1]},
+            {id: -100501, title: "박 담당 단톡", kind: "group", senders: [501, 777, 1]},
+            {id: -100502, title: "김 담당 단톡", kind: "group", senders: [502, 777, 1]}],
+    messages: [], nextMsg: 1,
+    managers: [], cases: [], nextCase: 1,
+    settings: {request_template: null, completion_words: null, confirm_words: null, auto_request: false},
+    rules: {enabled: true, cooldown_min: 10, next_id: 2, list: [{id: 1, keywords: ["주차", "주차장"], answer: "건물 뒤편 공영주차장을 이용해 주세요."}]},
+    cooldown: {}, log: []
+  };
+}
+let DB = load();
+function load(){
+  try { const raw = localStorage.getItem(STORE_KEY); if (raw) return Object.assign(seed(), JSON.parse(raw)); } catch (e) {}
+  return seed();
+}
+function save(){ try { localStorage.setItem(STORE_KEY, JSON.stringify(DB)); } catch (e) {} }
+function log(t){ DB.log.push(`[${new Date().toISOString().slice(11, 19)}] ${t}`); if (DB.log.length > 200) DB.log.shift(); }
+
+/* ═══════════════════ 3. Workflow (workflow.py 이식) ═══════════════════ */
+const WF = {
+  template: () => DB.settings.request_template || DEFAULT_TEMPLATE,
+  completionWords: () => DB.settings.completion_words ? parseWords(DB.settings.completion_words) : [...COMPLETION_WORDS],
+  confirmWords: () => DB.settings.confirm_words ? parseWords(DB.settings.confirm_words) : [...CONFIRM_WORDS],
+  manager: name => DB.managers.find(m => m.name === name) || null,
+  managers: () => [...DB.managers].sort((a, b) => a.name.localeCompare(b.name)),
+  findManager(q){
+    const ex = this.manager(q); if (ex) return ex;
+    const nq = normalize(q);
+    const hits = DB.managers.filter(m => nq && (nq.includes(normalize(m.name)) || normalize(m.name).includes(nq) || normalize(m.user_label).includes(nq)));
+    return hits.length === 1 ? hits[0] : null;
+  },
+  names(){ const n = this.managers().map(m => m.name); return n.length ? n.join(", ") : "(등록된 담당자 없음 → /담당자추가)"; },
+  case: id => DB.cases.find(c => c.id === id) || null,
+  openCases: () => DB.cases.filter(c => OPEN_STATES.includes(c.status)),
+  openCaseFor: tid => [...DB.cases].reverse().find(c => c.target_id === tid && OPEN_STATES.includes(c.status)) || null,
+  managerCases(name){ return DB.cases.filter(c => c.manager === name && OPEN_STATES.includes(c.status)); },
+  set(id, f){ Object.assign(this.case(id), f); },
+  newCase(tid, tname, status, manager){
+    const c = {id: DB.nextCase++, target_id: tid, target_name: tname, manager: manager || null, status,
+               request_chat_id: null, request_msg_id: null, others_spoke: 0};
+    DB.cases.push(c); return c;
+  },
+  addManager(name, gid, gtitle, uid, label, address){
+    const old = this.manager(name), guide = old ? old.guide : "";
+    DB.managers = DB.managers.filter(m => m.name !== name);
+    DB.managers.push({name, group_id: gid, group_title: gtitle, user_id: uid, user_label: label, address, guide});
+  },
+  request(c, m){
+    this.set(c.id, {status: WAIT_CONFIRM, request_chat_id: null, request_msg_id: null, others_spoke: 0});
+    return [["request", c.id, m.group_id, render(this.template(), c.id, c.target_name, m.name)],
+            ["me", `📨 #${c.id} ${c.target_name} 완성 → ${m.name} 단톡방(${m.group_title})에 준비 확인요청`]];
+  },
+  confirmBooking(tid, tname, mq){
+    const m = this.findManager(mq);
+    if (!m) return [["me", `❗ '${mq}' 담당자가 없습니다. 등록된 담당자: ${this.names()}`]];
+    let c = this.openCaseFor(tid);
+    if (c && c.status === SENDING) return [["me", `❗ #${c.id} 건은 지금 주소 발송 중이라 바꿀 수 없습니다.`]];
+    if (c && c.manager === m.name && c.status !== WAIT_ASSIGN) return [["me", `ℹ️ #${c.id} ${tname} 님은 이미 ${m.name} 님으로 확정되어 있습니다 (${c.status}).`]];
+    const acts = []; let head;
+    if (!c){
+      c = this.newCase(tid, tname, WAIT_COMPLETE, m.name);
+      head = `📌 #${c.id} ${tname} → ${m.name} 확정. ` + (DB.settings.auto_request ? "완성 알림이 오면 단톡방에 자동으로 확인요청합니다." : `완성 알림이 오면 여기로 알려 드립니다. 확인 후 → /완성 ${tname}`);
+    } else {
+      const before = c.manager; this.set(c.id, {manager: m.name});
+      head = `📌 #${c.id} ${tname} → ${m.name} 확정` + (before ? ` (변경 전: ${before})` : "");
+    }
+    if (m.guide){ acts.push(["send", tid, renderGuide(m.guide, tname, m.name)]); head += "\n안내 문구를 보냈습니다."; }
+    else head += `\n⚠️ ${m.name} 님 안내 문구가 없어 보내지 않았습니다. (/안내문구 ${m.name} | 문구)`;
+    acts.push(["me", head]);
+    if ([WAIT_ASSIGN, WAIT_CONFIRM].includes(c.status)) acts.push(...this.request(c, m));
+    return acts;
+  },
+  assign(id, mq){
+    const c = this.case(id);
+    if (!c) return [["me", `❗ #${id} 건이 없습니다. /대기 로 번호를 확인해 주세요.`]];
+    if (!OPEN_STATES.includes(c.status)) return [["me", `❗ #${id} 건은 이미 ${c.status} 상태입니다.`]];
+    return this.confirmBooking(c.target_id, c.target_name, mq);
+  },
+  rerequest(id){
+    const c = this.case(id);
+    if (!c || c.status !== WAIT_CONFIRM) return [["me", `❗ #${id} 건은 확인대기 상태가 아닙니다.`]];
+    const m = this.manager(c.manager);
+    if (!m) return [["me", `❗ #${id} 건의 담당자 '${c.manager}'가 삭제되었습니다. /확정 으로 다시 지정해 주세요.`]];
+    return this.request(c, m);
+  },
+  cancel(id){
+    const c = this.case(id);
+    if (!c || ![WAIT_ASSIGN, WAIT_COMPLETE, WAIT_CONFIRM].includes(c.status)) return [["me", `❗ #${id} 건은 취소할 수 있는 상태가 아닙니다.`]];
+    this.set(id, {status: CANCELED}); return [["me", `🗑 #${id} ${c.target_name} 건을 취소했습니다.`]];
+  },
+  onCompletion(tid, tname, text){
+    const words = this.completionWords();
+    if (!DB.settings.auto_request){
+      if (!mentionsCompletion(text, words)) return [];
+      const c = this.openCaseFor(tid), looks = isCompletion(text, words) ? "완성 알림으로 보입니다" : "완성 전 말일 수도 있습니다";
+      if (c && c.status === WAIT_COMPLETE) return [["me", `📦 #${c.id} ${tname}: "${preview(text, 80)}"\n(${looks})\n완성이 맞으면 → /완성 ${c.id}   (${c.manager} 단톡방에 요청이 올라갑니다)`]];
+      if (c) return [];
+      return [["me", `📦 ${tname}: "${preview(text, 80)}"\n(${looks}) 예약 확정된 건이 없습니다.\n→ /확정 ${tname} 담당자이름  한 뒤  /완성 ${tname}`]];
+    }
+    if (!isCompletion(text, words)){
+      const c = this.openCaseFor(tid);
+      if (c && c.status === WAIT_COMPLETE && mentionsCompletion(text, words))
+        return [["me", `💬 #${c.id} ${tname}: "${preview(text, 60)}"\n→ 아직 완성 전 말로 보고 단톡방에 알리지 않았습니다.\n완성이 맞으면 → /완성 ${c.id}`]];
+      return [];
+    }
+    return this.complete(tid, tname, text);
+  },
+  forceCompletion(id){
+    const c = this.case(id);
+    if (!c || ![WAIT_COMPLETE, WAIT_ASSIGN].includes(c.status)) return [["me", `❗ #${id} 건은 완성대기 상태가 아닙니다. (/대기 로 확인)`]];
+    if (c.status === WAIT_ASSIGN) return [["me", `ℹ️ #${id} 건은 이미 완성으로 접수되어 있고 담당자 확정을 기다립니다. → /확정 ${c.target_name} 담당자이름`]];
+    return this.complete(c.target_id, c.target_name, "(/완성 으로 직접 처리)");
+  },
+  complete(tid, tname, text){
+    let c = this.openCaseFor(tid);
+    if (c && c.status === WAIT_COMPLETE){
+      const m = this.manager(c.manager);
+      if (!m){ this.set(c.id, {status: WAIT_ASSIGN, manager: null}); return [["me", `❗ #${c.id} ${tname} 완성 알림이 왔는데 담당자 '${c.manager}'가 삭제되었습니다. → /확정 ${tname} 담당자이름`]]; }
+      return this.request(c, m);
+    }
+    if (c) return [["me", `ℹ️ #${c.id} ${tname} 님이 '완성'을 다시 보냈습니다 (현재: ${c.status}).\n원문: ${preview(text)}`]];
+    c = this.newCase(tid, tname, WAIT_ASSIGN);
+    return [["me", `🆕 #${c.id} ${tname} 완성 알림 — 확정된 담당자가 없습니다.\n원문: ${preview(text)}\n\n담당자를 정해 주세요 → /확정 ${tname} 담당자이름\n등록된 담당자: ${this.names()}`]];
+  },
+  onGroupReply(chat, replyTo, sid, sname, text){
+    if (!replyTo) return [];
+    const c = DB.cases.find(x => x.request_chat_id === chat && x.request_msg_id === replyTo);
+    if (!c) return [];
+    const kind = classifyReply(text, this.confirmWords()), m = c.manager ? this.manager(c.manager) : null;
+    if (c.status !== WAIT_CONFIRM){
+      if (kind === "confirm") return [["me", `ℹ️ #${c.id} 건은 이미 ${c.status} 상태라 주소를 다시 보내지 않았습니다. (${sname}: ${preview(text)})`]];
+      return [];
+    }
+    if (!m || sid !== m.user_id){
+      if (kind) return [["me", `⚠️ #${c.id} 요청에 담당자가 아닌 ${sname} 님이 답장했습니다. 무시했습니다.\n내용: ${preview(text)}`]];
+      return [];
+    }
+    if (kind === "confirm"){ this.set(c.id, {status: SENDING}); return [["deliver", c.id, c.target_id, m.address]]; }
+    if (kind === "reject") return [["me", `↩️ #${c.id} ${c.target_name} 건을 ${m.name} 님이 반려했습니다.\n내용: ${preview(text, 200)}\n다시 요청: /재요청 ${c.id}  ·  취소: /취소 ${c.id}`]];
+    return [["me", `💬 #${c.id} ${m.name} 님 답장 (준비 확인으로 보지 않음): ${preview(text, 200)}`]];
+  },
+  onGroupMessage(chat, replyTo, sid, sname, text){
+    if (replyTo && DB.cases.some(x => x.request_chat_id === chat && x.request_msg_id === replyTo))
+      return this.onGroupReply(chat, replyTo, sid, sname, text);
+    const waiting = DB.cases.filter(c => c.request_chat_id === chat && c.status === WAIT_CONFIRM);
+    if (!waiting.length) return [];
+    const mine = waiting.filter(c => { const m = this.manager(c.manager); return m && m.user_id === sid; });
+    if (!mine.length){ waiting.forEach(c => this.set(c.id, {others_spoke: 1})); return []; }
+    if (replyTo) return [];
+    const kind = classifyReply(text, this.confirmWords());
+    if (!kind) return [];
+    const norm = normalize(text);
+    let picked = mine.filter(c => new RegExp(`#${c.id}(?!\\d)`).test(norm) || norm.includes(normalize(c.target_name)));
+    if (!picked.length) picked = mine;
+    const name = this.manager(mine[0].manager).name;
+    if (kind === "reject") return [["me", `↩️ ${picked.map(c => "#" + c.id).join(", ")} ${name} 님이 단톡방에 반려 메시지를 남겼습니다 (답장 아님).\n내용: ${preview(text, 200)}`]];
+    if (picked.length > 1) return [["me", `❓ ${name} 님이 답장 없이 "${preview(text)}"라고 했는데, 확인대기 건이 여러 개라 어느 건인지 몰라 보내지 않았습니다.\n` + picked.map(c => ` · #${c.id} ${c.target_name} → /전달 ${c.id}`).join("\n")]];
+    const c = picked[0];
+    if (c.others_spoke) return [["me", `⚠️ #${c.id} ${name} 님이 답장 없이 "${preview(text)}"라고 했지만, 요청 이후 다른 사람이 단톡방에 말해서 다른 배정자 건일 수 있어 자동으로 보내지 않았습니다.\n#${c.id} ${c.target_name} 건이 맞으면 → /전달 ${c.id}`]];
+    this.set(c.id, {status: SENDING});
+    return [["deliver", c.id, c.target_id, this.manager(c.manager).address]];
+  },
+  forceDeliver(id){
+    const c = this.case(id);
+    if (!c || c.status !== WAIT_CONFIRM) return [["me", `❗ #${id} 건은 확인대기 상태가 아닙니다. (/대기 로 확인)`]];
+    const m = this.manager(c.manager);
+    if (!m) return [["me", `❗ #${id} 건의 담당자 '${c.manager}'가 삭제되었습니다.`]];
+    this.set(id, {status: SENDING}); return [["deliver", id, c.target_id, m.address]];
+  },
+  markDone(id){ this.set(id, {status: DONE}); const c = this.case(id); return [["me", `✅ #${id} ${c.manager} 준비 확인 → ${c.target_name} 님에게 주소 발송 완료`]]; }
+};
+
+/* ═══════════════════ 4. 봇 (telegram_autoreply.py 이식) ═══════════════════ */
+const HELP = `📋 자동 안내 명령어 (이 '저장한 메시지' 방에서만 동작)
+
+/추가 키워드1, 키워드2 | 안내 문구
+/목록 · /보기 번호 · /수정 번호 | 새 문구
+/키워드 번호 | 새 키워드 · /삭제 번호
+/테스트 문장 · /끄기 · /켜기 · /간격 분 · /상태
+
+📦 예약 확정 → 완성 → 준비 확인 → 주소 전달
+/확정 대상이름 담당자이름
+  → 예약 확정. 담당자 안내 문구를 대상에게 보냄
+    대상이 '완성' 같은 말을 하면 여기로 📦 알림이 옵니다
+/완성 대상이름 (또는 /완성 번호)
+  → 완성을 직접 확인한 뒤 보내면 담당자 단톡방에 준비 확인요청
+/대기 · /재요청 번호 · /취소 번호
+/전달 번호
+  → 담당자 확인이 애매해서 자동으로 안 보낸 건의 주소를 직접 보냄
+
+[담당자 설정]
+/담당자추가 이름 | 단톡방 이름 | 주소
+  → 못 찾으면: /담당자추가 이름 | 단톡방 이름 | @아이디 | 주소
+/안내문구 이름 | 문구   ({대상} {담당자})
+/담당자목록 · /담당자보기 이름 · /담당자주소 이름 | 새 주소 · /담당자삭제 이름
+/요청문구 문구   ({번호} {대상} {담당자}, '기본'이면 처음 문구)
+/완성단어 완성, 완료, 다됐어요
+/확인단어 확인, 올려
+/자동요청 켜기 · /자동요청 끄기`;
+const KEYWORD_COMMANDS = ["/추가", "/목록", "/보기", "/수정", "/키워드", "/삭제", "/테스트", "/켜기", "/끄기", "/간격", "/상태", "/도움말"];
+const WORKFLOW_COMMANDS = ["/담당자추가", "/담당자목록", "/담당자보기", "/담당자주소", "/담당자삭제", "/안내문구", "/요청문구",
+  "/완성단어", "/확인단어", "/자동요청", "/확정", "/대기", "/완성", "/재요청", "/전달", "/취소"];
+
+const pname = id => (DB.people[id] || {name: String(id)}).name;
+const plabel = id => pname(id) + (DB.people[id] && DB.people[id].username ? ` (@${DB.people[id].username})` : "");
+const groupsList = () => Object.entries(DB.groups).map(([id, g]) => ({id: Number(id), name: g.title, members: g.members}));
+
+function findGroup(q){
+  const nq = normalize(q), gs = groupsList(), found = gs.filter(g => nq && normalize(g.name).includes(nq)), exact = found.filter(g => normalize(g.name) === nq);
+  if (exact.length === 1) return [exact[0], null];
+  if (found.length === 1) return [found[0], null];
+  if (!found.length) return [null, `❗ '${q}'가 들어간 단톡방을 찾지 못했습니다.\n내 단톡방(최근 순):\n` + (gs.map(g => ` · ${g.name}`).join("\n") || " (단톡방 없음)")];
+  return [null, `❗ '${q}'에 해당하는 단톡방이 여러 개입니다. 더 정확히 써 주세요.\n` + found.map(g => ` · ${g.name}`).join("\n")];
+}
+function findMember(g, q){
+  const members = g.members.filter(u => u !== ME), uq = q.trim().replace(/^@/, "").toLowerCase();
+  const byUser = members.filter(u => (DB.people[u] && DB.people[u].username || "").toLowerCase() === uq);
+  if (byUser.length === 1) return [byUser[0], null];
+  const nq = normalize(q.trim().replace(/^@/, "")), byName = members.filter(u => nq && normalize(pname(u)).includes(nq));
+  if (byName.length === 1) return [byName[0], null];
+  if (!byName.length) return [null, `❗ '${g.name}' 단톡방 멤버 중 '${q}'를 찾지 못했습니다.\n이 단톡방 멤버:\n` + members.map(u => ` · ${plabel(u)}`).join("\n") + "\n\n이 중 담당자의 이름이나 @아이디를 써 주세요."];
+  return [null, `❗ '${q}'에 해당하는 멤버가 여러 명입니다. @아이디로 써 주세요.\n` + byName.map(u => ` · ${plabel(u)}`).join("\n")];
+}
+function findTarget(q){
+  const nq = normalize(q);
+  for (const c of WF.openCases()) if (normalize(c.target_name) === nq) return [[c.target_id, c.target_name], null];
+  const people = DB.chats.filter(c => c.kind === "private");
+  const exact = people.filter(c => normalize(c.title) === nq), found = exact.length ? exact : people.filter(c => nq && normalize(c.title).includes(nq));
+  if (found.length === 1) return [[found[0].id, found[0].title], null];
+  if (!found.length) return [null, `❗ '${q}' 이름의 1:1 대화방을 찾지 못했습니다.\n대상과 주고받은 1:1 대화가 있어야 합니다. 대화방에 보이는 이름 그대로 써 주세요.`];
+  return [null, `❗ '${q}'에 해당하는 대화방이 여러 개입니다. 정확한 이름을 써 주세요.\n` + found.map(c => ` · ${c.title}`).join("\n")];
+}
+
+function workflowCommand(text){
+  text = text.trim();
+  const sp = text.indexOf(" "), first = (sp < 0 ? text : text.slice(0, sp)).split("\n")[0];
+  if (!WORKFLOW_COMMANDS.includes(first)) return null;
+  const cmd = first, rest = text.slice(cmd.length).trim();
+  const R = (reply, acts = []) => [reply, acts];
+
+  if (cmd === "/담당자추가"){
+    const f = splitBar(rest, 3).map(s => s.trim());
+    const usage = "❗ 형식: /담당자추가 이름 | 단톡방 이름 | 주소\n  (단톡방에서 이름으로 못 찾으면: /담당자추가 이름 | 단톡방 이름 | @아이디 | 주소)";
+    let name, gq, mq, addr;
+    if (f.length === 3 && f.every(Boolean)) [name, gq, addr] = f, mq = name;
+    else if (f.length === 4 && f.every(Boolean)) [name, gq, mq, addr] = f;
+    else return R(usage);
+    if (addr.length > MAX_LEN) return R(`❗ 주소가 너무 깁니다. (${addr.length}자)`);
+    const [g, e1] = findGroup(gq); if (e1) return R(e1);
+    const [uid, e2] = findMember(g, mq); if (e2) return R(e2);
+    WF.addManager(name, g.id, g.name, uid, plabel(uid), addr);
+    return R(`✅ 담당자 '${name}' 등록\n단톡방: ${g.name}\n계정: ${plabel(uid)}\n주소:\n${addr}`);
+  }
+  if (cmd === "/담당자목록"){
+    const ms = WF.managers();
+    if (!ms.length) return R("📭 등록된 담당자가 없습니다. /담당자추가 로 등록하세요.");
+    return R(`👥 담당자 ${ms.length}명` + ms.map(m => {
+      const st = WF.managerCases(m.name).map(c => `#${c.id} ${c.target_name}(${c.status})`).join(", ") || "진행 중인 건 없음";
+      return `\n\n${m.name} · ${st}\n   단톡방: ${m.group_title}\n   계정: ${m.user_label}\n   주소: ${preview(m.address)}\n   안내 문구: ${m.guide ? preview(m.guide) : "없음 ⚠️"}`;
+    }).join(""));
+  }
+  if (cmd === "/담당자보기"){
+    const m = WF.manager(rest); if (!m) return R(`❗ '${rest}' 담당자가 없습니다.`);
+    return R(`🔎 ${m.name}\n단톡방: ${m.group_title}\n계정: ${m.user_label}\n\n[주소]\n${m.address}\n\n[안내 문구]\n${m.guide || "(없음)"}`);
+  }
+  if (cmd === "/안내문구"){
+    if (!rest.includes("|")) return R("❗ 형식: /안내문구 담당자이름 | 예약 확정 때 보낼 문구  ({대상} {담당자} 사용 가능)");
+    const [n0, ...g0] = splitBar(rest, 1); const nm = n0.trim(), guide = g0.join("|").trim();
+    if (guide.length > MAX_LEN) return R(`❗ 문구가 너무 깁니다. (${guide.length}자)`);
+    const bad = unknownPlaceholders(guide, ["대상", "담당자"]);
+    if (bad.length) return R(`❗ 중괄호 안에는 글자 그대로 {대상} 또는 {담당자}만 쓸 수 있습니다. (지금: ${bad.map(b => "{" + b + "}").join(", ")})\n실제 이름은 보낼 때 자동으로 들어갑니다.\n예: /안내문구 ${nm} | {대상}님, {담당자} 담당자로 예약 확정되었습니다.`);
+    const m = WF.findManager(nm); if (!m) return R(`❗ '${nm}' 담당자가 없습니다. 등록된 담당자: ${WF.names()}`);
+    m.guide = guide;
+    return R(guide ? `✅ '${m.name}' 안내 문구 저장\n── 예시 (대상: 홍길동) ──\n${renderGuide(guide, "홍길동", m.name)}` : `✅ '${m.name}' 안내 문구를 지웠습니다.`);
+  }
+  if (cmd === "/자동요청"){
+    if (["켜기", "켬", "on"].includes(rest)) DB.settings.auto_request = true;
+    else if (["끄기", "끔", "off"].includes(rest)) DB.settings.auto_request = false;
+    else if (rest) return R("❗ 형식: /자동요청 켜기  또는  /자동요청 끄기");
+    return R("⚙️ 자동 요청: " + (DB.settings.auto_request
+      ? "켜짐 ▶️ 대상이 완성 알림을 보내면 바로 단톡방에 요청합니다.\n(완성 전 말로 보이면 나에게만 알림 → /완성)"
+      : "꺼짐 ⏸ 대상이 완성 관련 말을 하면 나에게만 📦 알림이 옵니다.\n직접 확인 후 /완성 대상이름 으로 단톡방에 요청하세요."));
+  }
+  if (cmd === "/완성단어" || cmd === "/확인단어"){
+    const isDone = cmd === "/완성단어", key = isDone ? "completion_words" : "confirm_words";
+    const what = isDone ? "대상이 하면 📦 완성 알림을 보낼 말" : "담당자가 쓰면 '준비됨'으로 볼 말";
+    const cur = isDone ? WF.completionWords() : WF.confirmWords();
+    if (!rest) return R(`📝 ${what}\n지금: ${cur.join(", ")}\n\n바꾸기: ${cmd} 단어1, 단어2  (쉼표로 구분, 들어 있기만 하면 됨)\n처음 값으로: ${cmd} 기본`);
+    const words = rest === "기본" ? null : parseWords(rest);
+    if (words && !words.length) return R(`❗ 단어를 하나 이상 써 주세요. (예: ${cmd} ${cur.join(", ")})`);
+    DB.settings[key] = words ? words.join(", ") : null;
+    return R(`✅ ${what}: ${(isDone ? WF.completionWords() : WF.confirmWords()).join(", ")}`);
+  }
+  if (cmd === "/요청문구"){
+    if (!rest) return R(`📝 지금 요청 문구\n${WF.template()}\n\n바꾸기: /요청문구 새 문구  ({번호} {대상} {담당자} 사용 가능)\n처음 문구로: /요청문구 기본`);
+    const bad = unknownPlaceholders(rest, ["번호", "대상", "담당자"]);
+    if (bad.length && rest !== "기본") return R(`❗ 중괄호 안에는 글자 그대로 {번호} {대상} {담당자}만 쓸 수 있습니다. (지금: ${bad.map(b => "{" + b + "}").join(", ")})\n예: /요청문구 [#{번호}] {대상} 님 완성됐습니다. 준비되시면 답장 부탁드립니다.`);
+    DB.settings.request_template = rest === "기본" ? null : rest;
+    return R(`✅ 요청 문구 저장\n── 예시 ──\n${render(WF.template(), 3, "홍길동", "박")}`);
+  }
+  if (cmd === "/담당자주소"){
+    if (!rest.includes("|")) return R("❗ 형식: /담당자주소 이름 | 새 주소");
+    const [n0, ...a0] = splitBar(rest, 1); const nm = n0.trim(), addr = a0.join("|").trim();
+    if (!addr) return R("❗ 새 주소를 입력해 주세요.");
+    const m = WF.manager(nm); if (!m) return R(`❗ '${nm}' 담당자가 없습니다.`);
+    m.address = addr; return R(`✅ '${nm}' 주소 변경`);
+  }
+  if (cmd === "/담당자삭제"){
+    if (!WF.manager(rest)) return R(`❗ '${rest}' 담당자가 없습니다.`);
+    if (WF.managerCases(rest).length) return R(`❗ '${rest}' 님은 진행 중인 건이 있어 지금은 삭제할 수 없습니다. (/대기)`);
+    DB.managers = DB.managers.filter(m => m.name !== rest); return R(`🗑 '${rest}' 삭제`);
+  }
+  if (cmd === "/대기"){
+    const cs = WF.openCases(); if (!cs.length) return R("📭 진행 중인 건이 없습니다.");
+    return R(`📋 진행 중 ${cs.length}건\n` + cs.map(c => `#${c.id} ${c.target_name} · ${c.status}${c.manager ? " · " + c.manager : ""}`).join("\n"));
+  }
+  let args = rest.split(/\s+/).filter(Boolean);
+  if (args.length && args[args.length - 1] === "강제") args = args.slice(0, -1);
+  let id = args.length && /^#?\d+$/.test(args[0]) ? Number(args[0].replace("#", "")) : null;
+  if (cmd === "/확정"){
+    if (args.length < 2) return R("❗ 형식: /확정 대상이름 담당자이름  (예: /확정 홍길동 박)");
+    const mgr = args[args.length - 1];
+    if (id !== null && args.length === 2) return R(null, WF.assign(id, mgr));
+    const [t, e] = findTarget(args.slice(0, -1).join(" ")); if (e) return R(e);
+    return R(null, WF.confirmBooking(t[0], t[1], mgr));
+  }
+  if (cmd === "/완성" && id === null && args.length){
+    const q = normalize(args.join(" ")), hits = WF.openCases().filter(c => normalize(c.target_name) === q);
+    if (hits.length !== 1) return R(`❗ 진행 중인 '${args.join(" ")}' 건을 찾지 못했습니다. /대기 에서 번호를 확인해 /완성 번호 로 보내 주세요.`);
+    id = hits[0].id;
+  }
+  if (id === null) return R("❗ 번호를 써 주세요. 번호는 /대기 에서 확인");
+  if (cmd === "/완성") return R(null, WF.forceCompletion(id));
+  if (cmd === "/재요청") return R(null, WF.rerequest(id));
+  if (cmd === "/전달") return R(null, WF.forceDeliver(id));
+  if (cmd === "/취소") return R(null, WF.cancel(id));
+  return null;
+}
+function splitBar(s, max){ const parts = s.split("|"); if (parts.length <= max + 1) return parts; return [...parts.slice(0, max), parts.slice(max).join("|")]; }
+
+function keywordCommand(text){
+  text = text.trim(); if (!text.startsWith("/")) return null;
+  const sp = text.search(/\s/), cmd = sp < 0 ? text : text.slice(0, sp), rest = sp < 0 ? "" : text.slice(sp + 1).trim();
+  const RL = DB.rules, get = id => RL.list.find(r => r.id === Number(id)) || null;
+  const kws = raw => parseWords(raw);
+  if (["/도움말", "/help", "/start"].includes(cmd)) return HELP;
+  if (cmd === "/추가"){
+    if (!rest.includes("|")) return "❗ 형식: /추가 키워드1, 키워드2 | 안내 문구";
+    const [k, ...a] = rest.split("|"), keywords = kws(k), answer = a.join("|").trim();
+    if (!keywords.length || !answer) return "❗ 키워드와 안내 문구를 모두 입력해 주세요.";
+    const r = {id: RL.next_id++, keywords, answer}; RL.list.push(r);
+    return `✅ ${r.id}번 등록\n키워드: ${keywords.join(", ")}\n안내: ${preview(answer, 60)}`;
+  }
+  if (cmd === "/목록") return RL.list.length ? `📋 등록된 안내 ${RL.list.length}개` + RL.list.map(r => `\n\n${r.id}번 · ${r.keywords.join(", ")}\n   → ${preview(r.answer, 30)}`).join("") : "📭 등록된 키워드가 없습니다.\n/추가 키워드 | 안내 문구 로 등록하세요.";
+  if (cmd === "/보기"){ const r = get(rest); return r ? `🔎 ${r.id}번\n키워드: ${r.keywords.join(", ")}\n\n${r.answer}` : "❗ 형식: /보기 번호  (번호는 /목록 에서 확인)"; }
+  if (cmd === "/수정"){
+    if (!rest.includes("|")) return "❗ 형식: /수정 번호 | 새 안내 문구";
+    const [i, ...a] = rest.split("|"), r = get(i.trim()), ans = a.join("|").trim();
+    if (!r) return "❗ 해당 번호가 없습니다. /목록 에서 번호를 확인해 주세요."; if (!ans) return "❗ 새 안내 문구를 입력해 주세요.";
+    r.answer = ans; return `✅ ${r.id}번 안내 문구 수정 완료`;
+  }
+  if (cmd === "/키워드"){
+    if (!rest.includes("|")) return "❗ 형식: /키워드 번호 | 새 키워드1, 새 키워드2";
+    const [i, k] = rest.split("|"), r = get(i.trim()), keywords = kws(k);
+    if (!r) return "❗ 해당 번호가 없습니다. /목록 에서 번호를 확인해 주세요."; if (!keywords.length) return "❗ 새 키워드를 입력해 주세요.";
+    r.keywords = keywords; return `✅ ${r.id}번 키워드 변경: ${keywords.join(", ")}`;
+  }
+  if (cmd === "/삭제"){ const r = get(rest); if (!r) return "❗ 형식: /삭제 번호  (번호는 /목록 에서 확인)"; RL.list = RL.list.filter(x => x !== r); return `🗑 ${r.id}번 삭제 (${r.keywords.join(", ")})`; }
+  if (cmd === "/테스트"){
+    if (!rest) return "❗ 형식: /테스트 상대가 보낼 법한 문장";
+    const hit = matchRules(rest);
+    if (!hit.length) return "🧪 테스트 결과: 일치하는 키워드가 없어 아무것도 보내지 않습니다.";
+    return `🧪 테스트 결과: 상대가 이렇게 보내면 아래 안내 ${hit.length}개가 발송됩니다.` + hit.map(r => `\n\n── ${r.id}번 (${r.keywords.join(", ")}) ──\n${r.answer}`).join("") + (RL.enabled ? "" : "\n\n⚠️ 지금은 자동 안내가 꺼져 있어 실제로는 발송되지 않습니다. (/켜기)");
+  }
+  if (cmd === "/켜기"){ RL.enabled = true; return "▶️ 자동 안내를 켰습니다."; }
+  if (cmd === "/끄기"){ RL.enabled = false; return "⏸ 자동 안내를 껐습니다. (/켜기 로 재개)"; }
+  if (cmd === "/간격"){ if (!/^\d+$/.test(rest)) return "❗ 형식: /간격 분  (예: /간격 10, 제한 없음은 /간격 0)"; RL.cooldown_min = Number(rest); return RL.cooldown_min ? `⏱ 같은 사람에게 같은 안내는 ${rest}분에 한 번만 보냅니다.` : "⏱ 재발송 제한을 해제했습니다."; }
+  if (cmd === "/상태") return `ℹ️ 자동 안내: ${RL.enabled ? "켜짐 ▶️" : "꺼짐 ⏸"}\n등록된 안내: ${RL.list.length}개\n재발송 간격: ${RL.cooldown_min ? RL.cooldown_min + "분" : "제한 없음"}`;
+  return "❓ 모르는 명령입니다. /도움말 을 보내 보세요.";
+}
+function matchRules(text){ const n = normalize(text); return DB.rules.list.filter(r => r.keywords.some(k => normalize(k) && n.includes(normalize(k)))); }
+
+/* 메시지 추가와 처리 */
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const hhmm = () => { const d = new Date(), p = n => String(n).padStart(2, "0"); return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; };
+function addMsg(chat, sender, text, replyTo = null, auto = false){
+  const msg = {id: DB.nextMsg++, chat_id: chat, sender_id: sender, text, reply_to: replyTo, auto, time: hhmm()};
+  DB.messages.push(msg); save(); changed(); return msg;
+}
+async function botSend(chat, text, replyTo = null){ await sleep(180); return addMsg(chat, ME, text, replyTo, true); }
+
+async function runActions(acts){
+  for (const a of acts){
+    const k = a[0];
+    if (k === "me") await botSend(ME, a[1]);
+    else if (k === "send"){ await botSend(a[1], a[2]); log(`안내 발송: → ${pname(a[1])}`); }
+    else if (k === "request"){ const m = await botSend(a[2], a[3]); WF.set(a[1], {request_chat_id: m.chat_id, request_msg_id: m.id}); log(`확인요청: #${a[1]} → ${DB.groups[a[2]] ? DB.groups[a[2]].title : a[2]}`); }
+    else if (k === "deliver"){
+      const [, id, tid, addr] = a;
+      if (!DB.chats.some(c => c.id === tid)){ WF.set(id, {status: WAIT_CONFIRM}); await botSend(ME, `❌ #${id} 주소 발송 실패: 대화방이 없습니다.\n건은 확인대기로 남아 있습니다.`); continue; }
+      await botSend(tid, addr); log(`주소 발송: #${id} → ${pname(tid)}`);
+      await runActions(WF.markDone(id));
+      const c = WF.case(id); await botSend(c.request_chat_id, `#${id} 주소 전달 완료`, c.request_msg_id);
+    }
+    save();
+  }
+}
+
+async function onMessage(msg){
+  const text = msg.text || "", chat = DB.chats.find(c => c.id === msg.chat_id);
+  if (!chat) return;
+  if (chat.kind === "saved"){
+    const wr = workflowCommand(text);
+    if (wr){ const [reply, acts] = wr; if (reply) await botSend(ME, reply, msg.id); await runActions(acts); log(`명령: ${text.split(/\s/)[0]}`); save(); changed(); return; }
+    const reply = keywordCommand(text);
+    if (reply){ await botSend(ME, reply, msg.id); log(`명령: ${text.split(/\s/)[0]}`); }
+    save(); changed(); return;
+  }
+  if (msg.sender_id === ME){
+    const first = text.trim().split(/\s/)[0];
+    if (WORKFLOW_COMMANDS.includes(first) || KEYWORD_COMMANDS.includes(first))
+      await botSend(ME, `⚠️ 명령 '${first}'를 다른 대화방에 보내셨습니다. 명령은 '저장한 메시지'에서만 동작하고, 방금 메시지는 상대에게 그대로 전송되었습니다. 필요하면 그 메시지를 삭제해 주세요.`);
+    return;
+  }
+  if (chat.kind === "group"){ await runActions(WF.onGroupMessage(chat.id, msg.reply_to, msg.sender_id, pname(msg.sender_id), text)); save(); changed(); return; }
+  await runActions(WF.onCompletion(chat.id, pname(msg.sender_id), text));
+  if (!DB.rules.enabled) return;
+  const now = Date.now(), lim = DB.rules.cooldown_min * 60000;
+  const hit = matchRules(text).filter(r => lim <= 0 || now - (DB.cooldown[`${chat.id}:${r.id}`] || 0) >= lim);
+  if (!hit.length) return;
+  hit.forEach(r => DB.cooldown[`${chat.id}:${r.id}`] = now);
+  await sleep(500);
+  for (const r of hit){ await botSend(chat.id, r.answer); log(`발송: ${pname(msg.sender_id)} ← ${r.id}번 (${r.keywords.join(", ")})`); }
+  save(); changed();
+}
+
+/* 사람·대화방 추가/삭제 */
+function addPerson(kind, name, title){
+  name = (name || "").trim().slice(0, 20); title = (title || "").trim().slice(0, 40);
+  if (kind === "manager" && !title) for (const s of ["단톡방", "단톡"]) if (name.endsWith(s)) name = name.slice(0, -s.length).trim();
+  if (!name) return "이름을 입력해 주세요";
+  if (kind === "manager") title = title || `${name} 단톡`;
+  if (kind === "target" && DB.chats.some(c => c.kind === "private" && c.title === name)) return `대상 '${name}'은 이미 ② 칸에 있습니다`;
+  if (kind === "manager" && DB.chats.some(c => c.kind === "group" && c.title === title)) return `단톡방 '${title}'은 이미 ③ 칸에 있습니다`;
+  const ids = Object.keys(DB.people).map(Number);
+  const uid = kind === "target" ? Math.max(...ids) + 1 : Math.max(...ids.filter(u => u < 9000)) + 1;
+  DB.people[uid] = {name, username: `user${uid}`};
+  if (kind === "manager"){
+    const gid = -100000 - uid; DB.groups[gid] = {title, members: [ME, uid, OTHER]};
+    DB.chats.push({id: gid, title, kind: "group", senders: [uid, OTHER, ME]});
+  } else {
+    DB.chats.splice(1 + DB.chats.filter(c => c.kind === "private").length, 0, {id: uid, title: name, kind: "private", senders: [uid, ME]});
+  }
+  save(); changed(); return null;
+}
+function removeChat(id){
+  const chat = DB.chats.find(c => c.id === id);
+  if (!chat || chat.kind === "saved") return "지울 수 없는 대화방입니다";
+  if (DB.chats.filter(c => c.kind === chat.kind).length <= 1) return "마지막 하나는 지울 수 없습니다";
+  DB.chats = DB.chats.filter(c => c !== chat);
+  DB.messages = DB.messages.filter(m => m.chat_id !== id);
+  const open = c => [WAIT_ASSIGN, WAIT_COMPLETE, WAIT_CONFIRM, SENDING].includes(c.status);
+  if (chat.kind === "group"){
+    const names = DB.managers.filter(m => m.group_id === id).map(m => m.name);
+    DB.cases.forEach(c => { if (names.includes(c.manager) && open(c)) c.status = CANCELED; });
+    DB.managers = DB.managers.filter(m => m.group_id !== id);
+    delete DB.groups[id];
+  } else DB.cases.forEach(c => { if (c.target_id === id && open(c)) c.status = CANCELED; });
+  save(); changed(); return null;
+}
+async function userSend(chat, sender, text, replyTo){ const m = addMsg(chat, sender, text, replyTo || null); await onMessage(m); }
+
+/* ═══════════════════ 5. 화면 ═══════════════════ */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const COLS = {
+  saved:   {title: "① 나 · 저장한 메시지", short: "① 나", sub: "명령은 여기에만 입력합니다. 프로그램 알림도 여기로 옵니다.", kind: "saved"},
+  private: {title: "② 대상과 1:1 대화", short: "② 대상", sub: "대상 역할로 메시지를 보내 봅니다.", kind: "private"},
+  group:   {title: "③ 담당자 단톡방", short: "③ 단톡방", sub: "담당자 + 다른 배정자 + 나. 담당자 역할로 답장해 봅니다.", kind: "group"},
+};
+const UI = {saved: {}, private: {}, group: {}};
+let mobileCol = "saved", seenIds = new Set(DB.messages.map(m => m.id)), lastSeen = {}, renderQueued = false;
+const markAllSeen = () => { lastSeen = {}; DB.chats.forEach(c => lastSeen[c.id] = msgsOf(c.id).length); };
+const isMobile = () => matchMedia("(max-width:760px)").matches;
+const chatsOf = kind => DB.chats.filter(c => c.kind === kind);
+const msgsOf = cid => DB.messages.filter(m => m.chat_id === cid);
+function roleLabel(uid){ if (uid === ME) return "나"; if (uid === OTHER) return "다른 배정자"; if (uid > 9000) return "대상"; return "담당자"; }
+function roleOf(m){ if (m.sender_id === ME) return m.auto ? "auto" : "me"; return {"다른 배정자": "other", "대상": "target", "담당자": "mgr"}[roleLabel(m.sender_id)]; }
+function changed(){ if (renderQueued) return; renderQueued = true; setTimeout(() => { renderQueued = false; renderAll(); }, 0); }
+
+function onEnter(el, fn){
+  let pending = false;
+  el.addEventListener("keydown", e => {
+    if (e.key !== "Enter" || e.shiftKey) return;
+    e.preventDefault();
+    if (e.isComposing || e.keyCode === 229) pending = true; else fn();
+  });
+  el.addEventListener("compositionend", () => { if (pending){ pending = false; setTimeout(fn, 0); } });
+}
+
+function buildCol(key){
+  const c = COLS[key], ui = UI[key], chats = chatsOf(c.kind);
+  if (!ui.chat || !chats.some(x => x.id === ui.chat)) ui.chat = chats[0].id;
+  const chat = chats.find(x => x.id === ui.chat);
+  if (!ui.sender || !chat.senders.includes(ui.sender)) ui.sender = chat.senders[0];
+  const keep = {}; ["in-", "addin-", "addtitle-"].forEach(p => { const el = $(p + key); if (el) keep[p] = el.value; });
+  const tabs = key === "saved" ? "" : `<div class="tabsrow">${chats.map(x => {
+      const unread = msgsOf(x.id).length - (lastSeen[x.id] ?? 0);
+      return `<button type="button" class="tab ${x.id === ui.chat ? "on" : ""}" data-pick="${x.id}">${esc(x.title)}${x.id !== ui.chat && unread > 0 ? `<span class="badge">${unread}</span>` : ""}</button>`;
+    }).join("")}<button type="button" class="tab" data-addtoggle>+ 추가</button>
+    ${chats.length > 1 ? `<button type="button" class="tab del ${ui.delArmed === ui.chat ? "armed" : ""}" data-del>${ui.delArmed === ui.chat ? `정말 '${esc(chat.title)}' 지울까요? 한 번 더` : `− ${esc(chat.title)} 지우기`}</button>` : ""}</div>
+    <div class="addrow" ${ui.adding ? "" : "hidden"}>
+      ${key === "group" ? `<input id="addin-${key}" placeholder="담당자 텔레그램 이름 (예: 박지훈)" aria-label="담당자 이름">
+        <input id="addtitle-${key}" placeholder="단톡방 제목 (비우면 '이름 단톡')" aria-label="단톡방 제목">`
+        : `<input id="addin-${key}" placeholder="새 대상 이름 (예: 춘향)" aria-label="대상 이름">`}
+      <button type="button" data-addgo>만들기</button></div><div class="err" id="adderr-${key}"></div>`;
+  const senders = chat.senders.map(s => `<button type="button" class="who-btn ${s === ui.sender ? "on" : ""}" data-sender="${s}">${esc(pname(s))} <span style="opacity:.7">(${roleLabel(s)})</span></button>`).join("");
+  const replyMsg = ui.reply ? DB.messages.find(m => m.id === ui.reply) : null;
+  $("c-" + key).innerHTML = `
+    <div class="chead"><div class="n">${c.title}</div><div class="s">${c.sub}</div>${tabs}</div>
+    <div class="msgs" id="m-${key}"></div>
+    <div class="comp">
+      <div class="who-row">보내는 사람: ${senders}</div>
+      ${replyMsg ? `<div class="replybar"><span>↩ 답장: ${esc(replyMsg.text.slice(0, 60))}</span><button type="button" data-unreply aria-label="답장 취소">✕</button></div>` : ""}
+      <div class="inrow"><textarea id="in-${key}" placeholder="메시지 입력 · Enter 전송" aria-label="메시지 입력"></textarea><button type="button" data-send>보내기</button></div>
+      <div class="err" id="err-${key}"></div>
+    </div>`;
+  Object.entries(keep).forEach(([p, v]) => { const el = $(p + key); if (el) el.value = v; });
+  const col = $("c-" + key);
+  col.querySelectorAll("[data-pick]").forEach(b => b.onclick = () => { ui.chat = Number(b.dataset.pick); ui.sender = null; ui.reply = null; ui.delArmed = null; renderAll(); });
+  col.querySelectorAll("[data-sender]").forEach(b => b.onclick = () => { ui.sender = Number(b.dataset.sender); renderAll(); $("in-" + key).focus(); });
+  const tg = col.querySelector("[data-addtoggle]"); if (tg) tg.onclick = () => { ui.adding = !ui.adding; renderAll(); if (ui.adding) $("addin-" + key).focus(); };
+  const go = col.querySelector("[data-addgo]"); if (go) go.onclick = () => doAdd(key);
+  const del = col.querySelector("[data-del]"); if (del) del.onclick = () => doRemove(key);
+  const ur = col.querySelector("[data-unreply]"); if (ur) ur.onclick = () => { ui.reply = null; renderAll(); };
+  col.querySelector("[data-send]").onclick = () => send(key);
+  onEnter($("in-" + key), () => send(key));
+  $("in-" + key).addEventListener("input", () => $("err-" + key).textContent = "");
+  ["addin-", "addtitle-"].forEach(p => { const el = $(p + key); if (el){ onEnter(el, () => doAdd(key)); el.addEventListener("input", () => $("adderr-" + key).textContent = ""); } });
+  renderMsgs(key);
+}
+
+function renderMsgs(key){
+  const ui = UI[key], box = $("m-" + key), byId = Object.fromEntries(DB.messages.map(m => [m.id, m])), list = msgsOf(ui.chat);
+  box.innerHTML = list.length ? list.map(m => {
+    const role = roleOf(m), who = role === "auto" ? "🤖 자동 (내 계정으로 발송)" : `${pname(m.sender_id)} · ${roleLabel(m.sender_id)}`;
+    const q = m.reply_to && byId[m.reply_to] ? `<div class="q">↩ ${esc(pname(byId[m.reply_to].sender_id))}: ${esc(byId[m.reply_to].text.slice(0, 50))}</div>` : "";
+    return `<button type="button" class="m r-${role} ${seenIds.has(m.id) ? "" : "new"}" data-reply="${m.id}" title="눌러서 답장"><div class="who">${esc(who)}</div>${q}${esc(m.text)}<div class="tm">${m.time}</div></button>`;
+  }).join("") : `<div class="empty">아직 메시지가 없습니다</div>`;
+  box.querySelectorAll("[data-reply]").forEach(b => b.onclick = () => { ui.reply = Number(b.dataset.reply); renderAll(); $("in-" + key).focus(); });
+  box.scrollTop = box.scrollHeight;
+  if (!isMobile() || mobileCol === key) lastSeen[ui.chat] = list.length;
+}
+
+async function send(key){
+  const ui = UI[key], box = $("in-" + key), text = box.value.trim();
+  if (!text) return;
+  if (key !== "saved" && text.startsWith("/")){ $("err-" + key).textContent = "명령은 ① 저장한 메시지에 입력하세요. (실제 텔레그램에서 여기에 보내면 상대에게 그대로 전송됩니다)"; return; }
+  box.value = ""; const r = ui.reply; ui.reply = null;
+  await userSend(ui.chat, ui.sender, text, r);
+}
+function doAdd(key){
+  const err = addPerson(key === "group" ? "manager" : "target", ($("addin-" + key) || {}).value, ($("addtitle-" + key) || {}).value);
+  if (err){ $("adderr-" + key).textContent = err; return; }
+  UI[key].adding = false; ["addin-", "addtitle-"].forEach(p => { const el = $(p + key); if (el) el.value = ""; });
+  UI[key].chat = chatsOf(COLS[key].kind).slice(-1)[0].id; UI[key].sender = null; renderAll();
+}
+function doRemove(key){
+  const ui = UI[key];
+  if (ui.delArmed !== ui.chat){ ui.delArmed = ui.chat; const armed = ui.chat; renderAll(); setTimeout(() => { if (ui.delArmed === armed){ ui.delArmed = null; renderAll(); } }, 4000); return; }
+  ui.delArmed = null; const err = removeChat(ui.chat);
+  if (err){ $("adderr-" + key).textContent = err; return; }
+  ui.chat = null; ui.reply = null; renderAll();
+}
+
+/* 단계 안내 */
+let current = null, skipOptional = false, nowFolded = false;
+function steps(){
+  const mgr = DB.managers[0], mname = mgr ? mgr.name : "박", tChat = chatsOf("private")[0], tname = tChat.title;
+  const caseT = [...DB.cases].reverse().find(c => c.target_name === tname), st = caseT ? caseT.status : null;
+  const requested = [WAIT_CONFIRM, SENDING, DONE].includes(st);
+  const words = WF.completionWords().map(normalize);
+  const saidDone = msgsOf(tChat.id).some(m => m.sender_id === tChat.id && words.some(w => normalize(m.text).includes(w)));
+  const g = chatsOf("group")[0], person = g ? pname(g.senders[0]) : "박담당", call = person.length > 2 ? person.slice(0, 1) : person;
+  const groupOf = n => { const m = WF.manager(n); return m ? m.group_id : g.id; };
+  return [
+    {label: "담당자 등록", done: DB.managers.length > 0, col: "saved",
+     how: `①에 담당자를 등록합니다. <code>/담당자추가 부를이름 | 단톡방 제목 일부 | 주소</code><br>단톡방 제목에 담당자 이름이 없어도 됩니다.`,
+     fill: {key: "saved", text: `/담당자추가 ${call} | ${g ? g.title : "박 담당"} | 서울시 강남구 테스트로 1`}},
+    {label: "안내 문구", done: DB.managers.some(m => m.guide), col: "saved",
+     how: `예약 확정 때 대상에게 자동으로 보낼 문구입니다. <code>{대상}</code> <code>{담당자}</code>는 글자 그대로 쓰세요.`,
+     fill: {key: "saved", text: `/안내문구 ${mname} | {대상}님, {담당자} 담당자로 예약 확정되었습니다. 완성되면 '완성'이라고 알려주세요.`}},
+    {label: "1~4 문의·협의", done: msgsOf(tChat.id).some(m => !m.auto) || !!caseT, optional: true, col: "private",
+     how: `실제로는 직접 하는 대화입니다. ②에서 <b>${esc(tname)}</b> 역할로 문의하고 <b>나</b>로 답해 보세요. 프로그램은 관여하지 않습니다.`,
+     fill: {key: "private", sender: tChat.senders[0], text: `${mname}담당 3시 가능한가요?`}},
+    {label: "5 예약 확정", done: !!caseT, col: "saved",
+     how: `①에 <code>/확정 ${esc(tname)} ${esc(mname)}</code> → 🤖 안내 문구가 ②로 자동 발송됩니다.`,
+     fill: {key: "saved", text: `/확정 ${tname} ${mname}`}},
+    {label: "6 대상 완성 알림", done: requested || (!!caseT && saidDone), col: "private",
+     how: `②에서 <b>${esc(tname)}</b> 역할로 완성 알림을 보냅니다. → 🤖 ①에 📦 알림 (단톡방에는 아직 안 감)`,
+     fill: {key: "private", sender: tChat.senders[0], text: `사장님 ${WF.completionWords()[0] || "완성"}했어요!`}},
+    {label: "6 직접 확인 → /완성", done: requested, col: "saved",
+     how: `완성이 맞다고 치고 ①에 <code>/완성 ${esc(tname)}</code> → 🤖 ③ 단톡방에 준비 확인요청이 올라갑니다.`,
+     fill: {key: "saved", text: `/완성 ${tname}`}},
+    {label: "7 담당자 답장", done: st === DONE, col: "group",
+     how: `③에서 <b>담당자</b> 역할로 "올려주세요"(또는 "확인")를 보냅니다. 답장이든 그냥이든 됩니다. → 🤖 ②에 주소 발송`,
+     fill: caseT && caseT.request_msg_id ? {key: "group", chat: caseT.request_chat_id, sender: (WF.manager(caseT.manager) || {}).user_id, text: "올려주세요"}
+                                         : {key: "group", chat: groupOf(mname), text: "올려주세요"}},
+  ];
+}
+function renderSteps(){
+  const list = steps(), idx = list.findIndex(s => !s.done && !(s.optional && skipOptional));
+  current = idx === -1 ? null : list[idx];
+  $("steps").innerHTML = list.map((s, i) => `<div class="step ${s.done ? "done" : ""} ${i === idx ? "cur" : ""}">${s.done ? "✓" : "○"} ${esc(s.label)}</div>`).join("");
+  document.querySelectorAll(".col").forEach(c => c.classList.remove("hl"));
+  $("now").classList.toggle("folded", nowFolded);
+  if (!current){
+    $("nowtxt").innerHTML = `<div class="h">🎉 한 바퀴 완료!</div><div class="d">② 대상 대화에 🤖 주소가 간 것을 확인해 보세요. '처음부터 다시'를 누르거나, ②에서 '+ 추가'로 새 대상을 만들어 다시 해 볼 수 있습니다.</div>`;
+    $("fill").hidden = true; renderTabs(null); return;
+  }
+  $("nowtxt").innerHTML = `<div class="h">지금 할 일 · ${esc(current.label)}</div><div>${current.how}</div>` +
+    (current.optional ? `<div class="d"><a href="#" id="skip">이 단계 건너뛰기</a></div>` : "");
+  const sk = $("skip"); if (sk) sk.onclick = e => { e.preventDefault(); skipOptional = true; renderSteps(); };
+  $("fill").hidden = false;
+  $("c-" + current.col).classList.add("hl");
+  renderTabs(current.col);
+}
+function fillStep(){
+  if (!current) return;
+  const f = current.fill, ui = UI[f.key];
+  if (f.chat) ui.chat = f.chat;
+  ui.sender = f.sender || null; ui.reply = f.reply || null;
+  mobileCol = f.key; renderAll();
+  if (f.sender){ ui.sender = f.sender; renderAll(); }
+  $("in-" + f.key).value = f.text; $("in-" + f.key).focus();
+}
+
+/* 폰 탭 */
+function renderTabs(hlKey){
+  $("tabs").innerHTML = Object.entries(COLS).map(([k, c]) => {
+    const unread = chatsOf(c.kind).reduce((n, ch) => n + Math.max(0, msgsOf(ch.id).length - (lastSeen[ch.id] ?? 0)), 0);
+    return `<button type="button" role="tab" aria-selected="${k === mobileCol}" class="${k === mobileCol ? "on" : ""} ${k === hlKey && k !== mobileCol ? "hl" : ""}" data-col="${k}">${c.short}${unread && k !== mobileCol ? `<span class="badge">${unread}</span>` : ""}</button>`;
+  }).join("");
+  $("tabs").querySelectorAll("[data-col]").forEach(b => b.onclick = () => { mobileCol = b.dataset.col; renderAll(); });
+  document.querySelectorAll(".col").forEach(c => c.classList.toggle("show", c.id === "c-" + mobileCol));
+}
+
+/* 문구 편집 */
+let editorOpen = false;
+const wordsKey = v => parseWords(v).join(", ");
+function field(id, label, value, chips){
+  return `<div class="efield"><label for="${id}">${label}</label>
+    <textarea id="${id}" data-orig="${esc(value)}">${esc(value)}</textarea>
+    ${chips.length ? `<div class="chips">눌러서 넣기: ${chips.map(c => `<button type="button" class="chip" data-chip="${id}" data-val="{${c}}">{${c}}</button>`).join("")}</div>` : ""}
+    <div class="preview" id="pv-${id}"></div></div>`;
+}
+function renderEditor(){
+  const tname = (chatsOf("private")[0] || {title: "홍길동"}).title, firstM = DB.managers[0] || {name: "박"};
+  let h = `<h3>문구 편집</h3><div class="hint">고친 칸은 파란색으로 표시됩니다. [저장]을 누르면 ① 저장한 메시지로 명령이 보내져 실제 텔레그램과 똑같이 저장됩니다.</div>`;
+  h += `<div class="ecard"><div class="t">단톡방 준비 확인요청 문구 <span>모든 담당자 공통 · /완성 때 올라감</span></div>
+    ${field("ed-tpl", "요청 문구", WF.template(), ["번호", "대상", "담당자"])}
+    <button type="button" class="chip" id="tplreset">처음 문구로 되돌리기</button></div>`;
+  h += `<div class="ecard"><div class="t">알아듣는 말 <span>쉼표로 구분 · 문장 안에 들어 있기만 하면 됩니다</span></div>
+    <div class="efield"><label for="ed-cw">대상이 이 말을 하면 ①로 📦 알림 · 지금: ${DB.settings.auto_request ? "자동 요청 켜짐" : "알림만, 단톡방 요청은 /완성 으로"}</label>
+      <input id="ed-cw" data-orig="${esc(WF.completionWords().join(", "))}" value="${esc(WF.completionWords().join(", "))}"></div>
+    <div class="efield"><label for="ed-fw">담당자가 쓰면 '준비됨'으로 볼 말</label>
+      <input id="ed-fw" data-orig="${esc(WF.confirmWords().join(", "))}" value="${esc(WF.confirmWords().join(", "))}">
+      <div class="preview">"나중에 올려주세요", "아직 확인 못했어요"처럼 부정하는 말이 섞이면 준비로 치지 않습니다.</div></div></div>`;
+  if (!DB.managers.length) h += `<div class="ecard"><div class="t">담당자별 문구</div><div class="hint">등록된 담당자가 없습니다. 먼저 ①에 <code>/담당자추가 이름 | 단톡방 | 주소</code> 로 등록하세요.</div></div>`;
+  WF.managers().forEach((m, i) => {
+    h += `<div class="ecard"><div class="t">담당자 ${esc(m.name)} <span>${esc(m.group_title)}</span></div>
+      ${field("ed-addr-" + i, "주소 (7단계에 대상에게 보냄)", m.address, [])}
+      ${field("ed-guide-" + i, "안내 문구 (5단계 예약 확정 때 보냄)", m.guide, ["대상", "담당자"])}</div>`;
+  });
+  const ex = exportCommands();
+  h += `<div class="ecard"><div class="t">📋 실제 텔레그램에 옮기기 <span>[저장]한 내용 기준</span></div>
+    <div class="hint">실제 텔레그램에는 이 편집 화면이 없습니다. 아래 명령을 하나씩 복사해 실제 '저장한 메시지'에 보내면 똑같이 설정됩니다.</div>` +
+    (ex.length ? ex.map((c, i) => `<div class="exrow"><pre id="ex-${i}">${esc(c.cmd)}</pre><button type="button" class="chip" data-copy="${i}">복사</button>${c.note ? `<div class="exnote">⚠️ ${esc(c.note)}</div>` : ""}</div>`).join("")
+               : `<div class="hint">아직 저장된 설정이 없습니다.</div>`) + `</div>`;
+  h += `<div id="editbar"><button type="button" id="editsave">저장</button><button type="button" id="editclose">닫기</button><span id="editmsg"></span></div>`;
+  $("editor").innerHTML = h;
+  const prevs = {"ed-tpl": [["번호", "대상", "담당자"], v => render(v, 1, tname, firstM.name)]};
+  WF.managers().forEach((m, i) => { prevs["ed-guide-" + i] = [["대상", "담당자"], v => renderGuide(v, tname, m.name)]; });
+  const upd = id => {
+    const el = $(id), pv = $("pv-" + id); el.classList.toggle("changed", el.value !== el.dataset.orig);
+    if (!pv) return; if (!prevs[id]){ pv.hidden = true; return; }
+    const bad = unknownPlaceholders(el.value, prevs[id][0]);
+    pv.innerHTML = bad.length ? `<span class="bad">⚠️ ${esc(bad.map(b => "{" + b + "}").join(" "))} 는 쓸 수 없는 자리표시입니다. 아래 버튼으로 넣어 주세요.</span>`
+                              : `<b>미리보기 (대상: ${esc(tname)})</b>\n${esc(prevs[id][1](el.value))}`;
+  };
+  $("editor").querySelectorAll("textarea,input").forEach(el => { el.addEventListener("input", () => { upd(el.id); $("editmsg").textContent = ""; }); upd(el.id); });
+  $("editor").querySelectorAll("[data-chip]").forEach(b => { b.onmousedown = e => e.preventDefault(); b.onclick = () => {
+    const el = $(b.dataset.chip), s = el.selectionStart ?? el.value.length, e = el.selectionEnd ?? el.value.length;
+    el.value = el.value.slice(0, s) + b.dataset.val + el.value.slice(e); el.focus(); el.selectionStart = el.selectionEnd = s + b.dataset.val.length; upd(el.id); }; });
+  $("tplreset").onclick = () => { $("ed-tpl").value = DEFAULT_TEMPLATE; upd("ed-tpl"); };
+  $("editor").querySelectorAll("[data-copy]").forEach(b => b.onclick = () => copyText($("ex-" + b.dataset.copy).textContent, b));
+  $("editsave").onclick = saveEditor; $("editclose").onclick = toggleEditor;
+}
+function exportCommands(){
+  const out = [];
+  WF.managers().forEach(m => out.push({cmd: `/담당자추가 ${m.name} | ${m.group_title} | ${m.address}`, note: `'${m.group_title}' 자리에 실제 단톡방 제목(일부)을 쓰세요.`}));
+  WF.managers().filter(m => m.guide).forEach(m => out.push({cmd: `/안내문구 ${m.name} | ${m.guide}`}));
+  if (DB.settings.request_template) out.push({cmd: `/요청문구 ${DB.settings.request_template}`});
+  if (DB.settings.completion_words) out.push({cmd: `/완성단어 ${DB.settings.completion_words}`});
+  if (DB.settings.confirm_words) out.push({cmd: `/확인단어 ${DB.settings.confirm_words}`});
+  if (DB.settings.auto_request) out.push({cmd: "/자동요청 켜기"});
+  return out;
+}
+function copyText(text, btn){
+  const done = () => { btn.textContent = "복사됨 ✓"; setTimeout(() => btn.textContent = "복사", 1500); };
+  try {
+    navigator.clipboard.writeText(text).then(done, () => fallback());
+  } catch (e) { fallback(); }
+  function fallback(){ const pre = btn.previousElementSibling, r = document.createRange(); r.selectNodeContents(pre); const s = getSelection(); s.removeAllRanges(); s.addRange(r); btn.textContent = "선택됨 · 길게 눌러 복사"; }
+}
+async function saveEditor(){
+  const msg = (t, c) => { $("editmsg").style.color = c; $("editmsg").textContent = t; };
+  if ($("editor").querySelector(".preview .bad")) return msg("⚠️ 쓸 수 없는 자리표시가 있습니다.", "var(--warn)");
+  const cmds = [], tpl = $("ed-tpl");
+  if (tpl.value.trim() !== tpl.dataset.orig.trim()) cmds.push(!tpl.value.trim() || tpl.value.trim() === DEFAULT_TEMPLATE ? "/요청문구 기본" : "/요청문구 " + tpl.value.trim());
+  for (const [id, cmd, def] of [["ed-cw", "/완성단어", COMPLETION_WORDS], ["ed-fw", "/확인단어", CONFIRM_WORDS]]){
+    const v = wordsKey($(id).value); if (v === wordsKey($(id).dataset.orig)) continue;
+    if (!v) return msg("⚠️ 알아듣는 말은 하나 이상 있어야 합니다", "var(--warn)");
+    cmds.push(v === def.join(", ") ? `${cmd} 기본` : `${cmd} ${v}`);
+  }
+  for (const [i, m] of WF.managers().entries()){
+    const a = $("ed-addr-" + i), g = $("ed-guide-" + i);
+    if (a.value.trim() !== a.dataset.orig.trim()){ if (!a.value.trim()) return msg(`⚠️ ${m.name} 주소가 비어 있습니다`, "var(--warn)"); cmds.push(`/담당자주소 ${m.name} | ${a.value.trim()}`); }
+    if (g.value.trim() !== g.dataset.orig.trim()) cmds.push(`/안내문구 ${m.name} | ${g.value.trim()}`);
+  }
+  if (!cmds.length) return msg("바뀐 내용이 없습니다", "var(--muted)");
+  for (const t of cmds) await userSend(ME, ME, t, null);
+  renderEditor(); msg(`✅ ${cmds.length}개 저장했습니다. 결과는 ① 저장한 메시지에서 확인하세요.`, "var(--ok)");
+}
+function toggleEditor(){ editorOpen = !editorOpen; $("editbtn").classList.toggle("on", editorOpen); $("editor").hidden = !editorOpen; if (editorOpen) renderEditor(); }
+
+/* 전체 그리기 */
+function renderAll(){
+  const a = document.activeElement, fid = a && a.id && /^(in|addin|addtitle)-/.test(a.id) ? a.id : null;
+  const sel = fid ? [a.selectionStart, a.selectionEnd] : null;
+  for (const k of Object.keys(COLS)) buildCol(k);
+  renderSteps();
+  seenIds = new Set(DB.messages.map(m => m.id));
+  if (fid && $(fid)){ const el = $(fid); el.focus({preventScroll: true}); try { el.setSelectionRange(sel[0], sel[1]); } catch (e) {} }
+}
+let resetArmed = false;
+$("reset").onclick = () => {
+  const b = $("reset");
+  if (!resetArmed){ resetArmed = true; b.textContent = "정말 모두 지울까요? 한 번 더"; b.classList.add("armed");
+    setTimeout(() => { resetArmed = false; b.textContent = "처음부터 다시"; b.classList.remove("armed"); }, 4000); return; }
+  resetArmed = false; b.textContent = "처음부터 다시"; b.classList.remove("armed");
+  DB = seed(); save(); skipOptional = false; Object.keys(UI).forEach(k => UI[k] = {}); markAllSeen(); mobileCol = "saved";
+  if (editorOpen) renderEditor(); renderAll();
+};
+$("editbtn").onclick = toggleEditor;
+$("fill").onclick = fillStep;
+$("fold").onclick = () => { nowFolded = !nowFolded; document.body.classList.toggle("folded", nowFolded); $("fold").textContent = nowFolded ? "안내 펼치기" : "안내 접기"; renderSteps(); };
+matchMedia("(max-width:760px)").addEventListener("change", renderAll);
+markAllSeen();
+renderAll();
+</script>
