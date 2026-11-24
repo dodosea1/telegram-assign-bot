@@ -16,3 +16,8 @@ simulator/data/
 __pycache__/
 *.pyc
 .claude/settings.local.json
+
+# ── 설명서 산출물 (용량 큼) ──
+guide/out/
+guide/site/*.mp4
+guide/site/*.jpg

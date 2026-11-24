@@ -13,9 +13,11 @@ fail() { printf '\n\033[1;31m✖ %s\033[0m\n' "$1"; exit 1; }
 
 [ -d /data/data/com.termux ] || fail "Termux 앱 안에서 실행해 주세요."
 
-say "1/4 필요한 프로그램 설치 (1~3분)"
-yes | pkg update -y >/dev/null 2>&1 || true
-pkg install -y python curl >/dev/null 2>&1 || fail "프로그램 설치 실패. 와이파이를 확인하고 다시 실행해 주세요."
+say "1/4 필요한 프로그램 설치 (1~5분, 글자가 많이 지나가도 정상입니다)"
+export DEBIAN_FRONTEND=noninteractive
+yes | pkg upgrade -y -o Dpkg::Options::=--force-confnew || true
+pkg install -y -o Dpkg::Options::=--force-confnew python curl \
+  || fail "프로그램 설치 실패. 와이파이를 확인하고 다시 실행해 주세요."
 
 say "2/4 자동응답 프로그램 내려받기"
 TMP="$(mktemp -d)"
