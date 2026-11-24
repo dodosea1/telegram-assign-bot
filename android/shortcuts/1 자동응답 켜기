@@ -1,0 +1,6 @@
+#!/data/data/com.termux/files/usr/bin/bash
+# 홈 화면 버튼: 이 창이 자동응답을 돌립니다. 닫지 마세요.
+tele start
+echo
+echo "꺼졌습니다. 이 창은 닫아도 됩니다."
+sleep 5

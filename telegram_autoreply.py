@@ -14,6 +14,8 @@ import json
 import os
 import random
 import re
+import signal
+import sys
 import time
 from datetime import datetime
 from pathlib import Path
@@ -26,6 +28,11 @@ RULES_FILE = BASE / "rules.json"        # 키워드와 안내 문구
 LOG_FILE = BASE / "autoreply.log"       # 발송 기록
 SESSION_NAME = str(BASE / "autoreply")  # 로그인 정보 (autoreply.session, 외부 공유 금지)
 WORKFLOW_DB = BASE / "automation.db"    # 담당자·완성 건 기록
+
+LOGIN_ONLY = "--login" in sys.argv       # 로그인만 하고 종료 (폰 설치 때)
+BACKGROUND = "--background" in sys.argv  # 입력을 묻지 않음 (폰에서 버튼으로 켤 때)
+NEED_LOGIN_EXIT = 3                      # 로그인이 안 되어 있을 때 종료 코드
+DEVICE = os.environ.get("TELE_DEVICE", "PC")
 
 TELEGRAM_SERVICE_ID = 777000            # 텔레그램 공식 알림 계정 (로그인 코드 등)
 MAX_ANSWER_LEN = 4000                   # 텔레그램 메시지 길이 한도(4096) 안쪽
@@ -573,6 +580,9 @@ def load_config():
     cfg = _load_json(CONFIG_FILE, None)
     if cfg and cfg.get("api_id") and cfg.get("api_hash"):
         return cfg
+    if BACKGROUND:
+        log("설정(api_id)이 없습니다. 먼저 로그인 단계를 진행하세요. (폰: tele login)")
+        sys.exit(NEED_LOGIN_EXIT)
     print("처음 실행입니다. https://my.telegram.org 에서 발급받은 값을 입력해 주세요.")
     while True:
         api_id = input("api_id (숫자): ").strip()
@@ -598,12 +608,23 @@ async def main():
     client = TelegramClient(SESSION_NAME, cfg["api_id"], cfg["api_hash"])
     client.parse_mode = None  # 안내 문구를 입력한 글자 그대로 발송
 
-    await client.start(
-        phone=lambda: input("전화번호 (예: +821012345678): ").strip(),
-        code_callback=lambda: input("텔레그램 앱으로 온 로그인 코드: ").strip(),
-        password=lambda: input("2단계 인증 비밀번호: ").strip(),
-    )
+    if BACKGROUND:
+        await client.connect()
+        if not await client.is_user_authorized():
+            log("로그인이 필요합니다. (폰: tele login)")
+            await client.disconnect()
+            sys.exit(NEED_LOGIN_EXIT)
+    else:
+        await client.start(
+            phone=lambda: input("전화번호 (예: +821012345678): ").strip(),
+            code_callback=lambda: input("텔레그램 앱으로 온 로그인 코드: ").strip(),
+            password=lambda: input("2단계 인증 비밀번호: ").strip(),
+        )
     me = await client.get_me()
+    if LOGIN_ONLY:
+        print(f"\n✅ 로그인 완료: {me.first_name}\n")
+        await client.disconnect()
+        return
     log(f"로그인: {me.first_name} / 등록된 안내 {len(store.rules)}개 / "
         f"자동 안내 {'켜짐' if store.enabled else '꺼짐'}")
     print("텔레그램 '저장한 메시지'에 /도움말 을 보내면 명령어를 볼 수 있습니다.")
@@ -717,7 +738,31 @@ async def main():
             except Exception as e:  # 한 건 실패해도 프로그램은 계속 구동
                 log(f"발송 실패: {name} ← {rule['id']}번 / {e!r}")
 
-    await client.run_until_disconnected()
+    # 켜짐 알림: 두 기기에서 동시에 켜면 알림이 두 번 와서 바로 알 수 있음
+    try:
+        await client.send_message("me", f"🟢 자동응답 켜짐 ({DEVICE})")
+    except Exception as e:
+        log(f"켜짐 알림 실패: {e!r}")
+
+    stop = asyncio.Event()
+    try:  # 폰에서 '끄기' 버튼(SIGTERM)을 누르면 꺼짐 알림을 보내고 종료
+        asyncio.get_running_loop().add_signal_handler(signal.SIGTERM, stop.set)
+    except (NotImplementedError, AttributeError, RuntimeError):
+        pass  # Windows
+    running = asyncio.ensure_future(client.run_until_disconnected())
+    stopping = asyncio.ensure_future(stop.wait())
+    await asyncio.wait({running, stopping}, return_when=asyncio.FIRST_COMPLETED)
+    if stop.is_set():
+        try:
+            await client.send_message("me", f"🔴 자동응답 꺼짐 ({DEVICE})")
+        except Exception:
+            pass
+        log("종료 요청으로 껐습니다.")
+        await client.disconnect()
+        return
+    stopping.cancel()
+    log("텔레그램 연결이 끊어졌습니다.")
+    sys.exit(1)
 
 
 if __name__ == "__main__":

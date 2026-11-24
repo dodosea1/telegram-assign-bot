@@ -1,0 +1,4 @@
+#!/data/data/com.termux/files/usr/bin/bash
+tele status
+echo
+read -r -p "엔터를 누르면 닫힙니다." _
